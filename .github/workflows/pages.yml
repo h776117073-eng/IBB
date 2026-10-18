@@ -2,6 +2,9 @@ name: Deploy IBB Market to GitHub Pages
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "data/store-names-*.json"
+      - "data/index.json"
   workflow_dispatch:
 permissions:
   contents: read
