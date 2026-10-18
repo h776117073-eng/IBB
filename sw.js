@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_NAME = 'ibb-market-static-v2';
+const CACHE_NAME = 'ibb-market-static-v3';
 const CORE_FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg', './data/index.json'];
 self.addEventListener('install', function(event) {
   event.waitUntil(caches.open(CACHE_NAME).then(function(cache) {
