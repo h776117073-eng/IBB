@@ -462,28 +462,58 @@
           const chunks=Array.isArray(idx.chunks)?idx.chunks:[];
           if(!chunks.length)throw new Error('قائمة الملفات غير موجودة');
           let loaded=0;
-          $('#loadState').textContent='جارٍ جلب '+idx.totalRecords.toLocaleString('ar')+' اسمًا…';
-          const arrays=[];
-          for(let i=0;i<chunks.length;i+=5){
-            const batch=chunks.slice(i,i+5);
-            const results=await Promise.all(batch.map(async function(file){
-              const resp=await fetch(DATA_PREFIX+file,{cache:'force-cache'});
-              if(!resp.ok)throw new Error('تعذر تحميل '+file);
-              const arr=await resp.json();
-              if(!Array.isArray(arr)||arr.some(function(x){return typeof x!=='string';}))throw new Error('صيغة بيانات غير متوقعة');
-              loaded+=arr.length;
-              $('#loadProgressFill').style.width=Math.round(loaded/idx.totalRecords*100)+'%';
-              return arr;
-            }));
-            arrays.push.apply(arrays,results);
+          const arrays=new Array(chunks.length);
+          const failures=[];
+          $('#loadProgress').classList.remove('hidden');
+          $('#loadState').textContent='جارٍ تحميل أسماء المنشآت…';
+          function showPartial(){
+            sourceNames=arrays.filter(Array.isArray).flat();
+            if(sourceNames.length){
+              sourceReady=true;
+              renderDirectory(true);renderFollowed();renderMapResults('');
+            }
+            $('#loadedCount').textContent=loaded.toLocaleString('ar')+' اسم تم تحميله';
+            $('#loadState').textContent='جارٍ تحميل الأسماء: '+loaded.toLocaleString('ar')+' من '+idx.totalRecords.toLocaleString('ar');
+            $('#loadProgressFill').style.width=Math.min(100,Math.round(loaded/Math.max(1,idx.totalRecords)*100))+'%';
           }
-          sourceNames=arrays.flat();
+          async function loadChunk(file,index){
+            let lastError=null;
+            for(let attempt=0;attempt<2;attempt++){
+              const controller=new AbortController();
+              const timer=setTimeout(function(){controller.abort();},12000);
+              try{
+                const resp=await fetch(DATA_PREFIX+file,{cache:attempt===0?'force-cache':'reload',signal:controller.signal});
+                if(!resp.ok)throw new Error('HTTP '+resp.status);
+                const arr=await resp.json();
+                if(!Array.isArray(arr)||arr.some(function(x){return typeof x!=='string';}))throw new Error('صيغة بيانات غير متوقعة');
+                arrays[index]=arr;
+                loaded+=arr.length;
+                showPartial();
+                return;
+              }catch(error){lastError=error;}
+              finally{clearTimeout(timer);}
+            }
+            failures.push(file);
+            showPartial();
+          }
+          for(let i=0;i<chunks.length;i+=5){
+            await Promise.all(chunks.slice(i,i+5).map(function(file,offset){return loadChunk(file,i+offset);}));
+          }
+          sourceNames=arrays.filter(Array.isArray).flat();
+          if(!sourceNames.length)throw new Error('تعذر تحميل أي جزء من قائمة الأسماء');
           sourceReady=true;
-          saveSaved('ibb:names-cache-v2',sourceNames);
-          updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');
+          if(failures.length===0){
+            saveSaved('ibb:names-cache-v2',sourceNames);
+            updateLoadedState();
+          }else{
+            $('#loadedCount').textContent=sourceNames.length.toLocaleString('ar')+' اسم متاح جزئيًا';
+            $('#loadState').textContent='تم تحميل '+sourceNames.length.toLocaleString('ar')+' اسم؛ تعذر تحميل '+failures.length.toLocaleString('ar')+' ملف. حدّث الصفحة لاحقًا لإعادة المحاولة.';
+            $('#loadProgressFill').style.width=Math.round(sourceNames.length/Math.max(1,idx.totalRecords)*100)+'%';
+          }
+          renderDirectory(true);renderFollowed();renderMapResults('');
         }catch(error){
-          $('#loadState').textContent='تعذر تحميل القائمة الكاملة. تحقق من الاتصال ثم حدّث الصفحة.';
-          $('#directoryGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">!</div>'+escapeHTML(error.message||'حدث خطأ في تحميل البيانات')+'<br>يجب فتح الموقع على GitHub Pages أو عبر خادم ويب، وليس من مسار file:// مباشرة.</div>';
+          $('#loadState').textContent='تعذر تحميل قائمة الأسماء. تحقق من الاتصال ثم حدّث الصفحة.';
+          $('#directoryGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">!</div>'+escapeHTML(error.message||'حدث خطأ في تحميل البيانات')+'<br>يمكنك استخدام الإضافات المحلية حتى استعادة الاتصال.</div>';
           $('#loadedCount').textContent='قائمة الأسماء غير متاحة';
         }
       }
