@@ -14,7 +14,7 @@ The central gap is between the implied promise of a citywide marketplace and the
 - Commit c653764: bumped the service-worker cache from v2 to v3 so installed PWA clients can replace the older cached shell after deployment.
 - Added the reusable project skill at .agents/skills/ibb-five-reviewers/SKILL.md.
 - Updated README deployment/data limitations and committed this report.
-- Validation workflow #10 passed for the UI copy change. Pages deployment #39 passed for that same code change. The latest documentation deployment was still running at the time of the last check; the v3 service-worker change needs its own fresh validation and deployment confirmation.
+- Validation workflow #11 passed for the v3 service-worker change; Pages deployment #41 passed for the same commit. Fresh remote browser checks returned the updated page from both GitHub Pages and the Worker, showed the corrected search copy, and reached 11,060 loaded names. The Worker health endpoint returned ok=true. These are remote checks, not proof that DNS resolves on the user's phone or ISP. A later documentation-only deployment may still be in progress.
 
 ## Reviewer 1 — Product advocate / supporter
 **Keep:** Arabic-first local discovery, the existing names seed dataset, RTL responsive layout, search, map, and PWA foundation.
