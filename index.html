@@ -308,7 +308,7 @@
           const liked = likedProducts.indexOf(p.id)>=0;
           return '<article class="product-card"><div class="product-picture">'+(img?'<img loading="lazy" src="'+escapeHTML(img)+'" alt="'+escapeHTML(p.name)+'">':'<div class="product-placeholder" aria-hidden="true">▧</div>')+'</div>'+
             '<div class="product-content"><h4>'+escapeHTML(p.name)+'</h4><p>'+escapeHTML(p.description || 'وصف غير مضاف')+'</p>'+
-            '<div class="product-store">'+escapeHTML(p.storeName)+'</div><div class="product-price">'+(p.price!=='' && p.price!=null?escapeHTML(Number(p.price).toLocaleString('ar')+' ر.ي.':'السعر غير مضاف')+'</div>'+
+            '<div class="product-store">'+escapeHTML(p.storeName)+'</div><div class="product-price">'+(p.price!=='' && p.price!=null?escapeHTML(Number(p.price).toLocaleString('ar')+' ر.ي.'):'السعر غير مضاف')+'</div>'+
             '<div class="product-actions"><button class="button button-outline button-small" data-action="open-store" data-name="'+escapeHTML(p.storeName)+'">المتجر</button><button class="icon-button '+(liked?'liked':'')+'" aria-label="إعجاب" data-action="like-product" data-id="'+escapeHTML(p.id)+'">'+(liked?'♥':'♡')+'</button></div></div></article>';
         }).join('');
       }
