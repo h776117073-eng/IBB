@@ -1,0 +1,35 @@
+{
+  "sourceFile": "ملف مدينة إب الجديد المحدث (كامل 11060 سجل).xlsx",
+  "sourceSheet": "الجدول الشامل الكامل (11060)",
+  "sourceColumn": "اسم المنشأة أو المعلم",
+  "importedFields": [
+    "name"
+  ],
+  "totalRecords": 11060,
+  "chunkSize": 500,
+  "chunks": [
+    "store-names-001.json",
+    "store-names-002.json",
+    "store-names-003.json",
+    "store-names-004.json",
+    "store-names-005.json",
+    "store-names-006.json",
+    "store-names-007.json",
+    "store-names-008.json",
+    "store-names-009.json",
+    "store-names-010.json",
+    "store-names-011.json",
+    "store-names-012.json",
+    "store-names-013.json",
+    "store-names-014.json",
+    "store-names-015.json",
+    "store-names-016.json",
+    "store-names-017.json",
+    "store-names-018.json",
+    "store-names-019.json",
+    "store-names-020.json",
+    "store-names-021.json",
+    "store-names-022.json",
+    "store-names-023.json"
+  ]
+}
