@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="الدليل الرقمي الأولي لأسماء المنشآت في مدينة إب — ابحث، استكشف الخريطة، وأضف بياناتك المحلية.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%23102a43'/%3E%3Ctext x='50' y='65' font-size='52' text-anchor='middle' fill='%237ce0bd' font-family='Arial'%3Eإب%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <title>إب ماركت | الدليل الرقمي</title>
+  <style>
+    :root{--ink:#14283c;--muted:#697b8c;--bg:#f4f7fa;--card:#fff;--line:#e1e8ef;--navy:#102a43;--teal:#147d70;--mint:#dff7ee;--gold:#f2b84b;--danger:#a33b3b;--shadow:0 8px 26px rgba(16,42,67,.08)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.55}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #88d9c2;outline-offset:2px}a{color:inherit}.shell{max-width:1120px;margin:auto;padding:0 16px 112px}.site-header{background:var(--navy);color:white;padding:16px 0 20px;border-radius:0 0 26px 26px;box-shadow:0 10px 28px rgba(16,42,67,.15)}.header-inner{max-width:1120px;margin:auto;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{display:flex;align-items:center;gap:11px;min-width:0}.brand-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#dff7ee;color:var(--navy);font-weight:900;font-size:20px;flex-shrink:0}.brand h1{font-size:19px;margin:0;line-height:1.2}.brand p{margin:4px 0 0;font-size:12px;color:#d1dfeb}.head-actions{display:flex;gap:8px}.button{border:0;border-radius:12px;padding:10px 14px;font-weight:750;transition:transform .12s,opacity .12s}.button:active{transform:scale(.98)}.button-primary{background:var(--teal);color:white}.button-light{background:#fff;color:var(--navy)}.button-ghost{background:#e8eff5;color:var(--ink)}.button-outline{background:transparent;border:1px solid var(--line);color:var(--ink)}.button-danger{background:#fff0f0;color:var(--danger)}.button-small{font-size:12px;padding:7px 10px;border-radius:9px}.hero{padding:22px 0 14px}.eyebrow{color:var(--teal);font-size:12px;font-weight:800;letter-spacing:.2px}.hero h2{font-size:clamp(23px,4vw,36px);line-height:1.3;margin:5px 0 8px;max-width:720px}.hero p{margin:0;color:var(--muted);max-width:760px;font-size:14px}.search-wrap{margin-top:18px;background:white;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:8px;display:flex;align-items:center;gap:8px}.search-wrap input{border:0;outline:none;min-width:0;flex:1;padding:10px 8px;background:transparent}.search-icon{font-size:20px;padding:0 8px}.search-tools{display:flex;gap:7px}.search-tools button{white-space:nowrap}.stats-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0}.stat-pill{display:inline-flex;align-items:center;gap:7px;background:var(--mint);color:#125d53;border-radius:100px;padding:7px 12px;font-size:12px;font-weight:800}.muted{color:var(--muted)}.small{font-size:12px}.notice{display:flex;gap:10px;align-items:flex-start;background:#fff9e9;border:1px solid #f3e4b5;border-radius:14px;padding:13px 14px;margin:16px 0;color:#614a1f;font-size:12px}.notice strong{display:block;margin-bottom:2px}.section{margin:24px 0}.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:13px}.section-head h2,.section-head h3{margin:0;font-size:19px}.section-head p{margin:3px 0 0;color:var(--muted);font-size:12px}.section-actions{display:flex;gap:8px;align-items:center}.section-actions select{max-width:170px;border:1px solid var(--line);border-radius:10px;padding:8px;background:white;color:var(--ink);font-size:12px}.banner-slot{display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px;padding:20px;background:linear-gradient(120deg,#e4f7ef,#f9fbfc);border:1px solid #cfece0;border-radius:18px}.banner-slot h3{margin:0 0 4px;font-size:17px}.banner-slot p{margin:0;color:#4b6a67;font-size:12px}.banner-icon{font-size:29px;width:56px;height:56px;display:grid;place-items:center;background:white;border-radius:16px}.ad-empty{display:flex;align-items:center;gap:12px}.ad-empty .tag{font-size:10px;font-weight:900;color:#8b651b;border:1px solid #ecd49b;border-radius:6px;padding:3px 6px;white-space:nowrap}.cards-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.store-card{display:block;width:100%;text-align:right;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 3px 12px rgba(16,42,67,.025);color:var(--ink);min-width:0}.store-card:hover{border-color:#a8dccc;box-shadow:var(--shadow)}.store-top{display:flex;gap:11px;align-items:center}.store-avatar{width:44px;height:44px;display:grid;place-items:center;flex-shrink:0;background:#e9f4f1;border-radius:50%;font-size:21px}.store-info{min-width:0;flex:1}.store-title{font-weight:850;font-size:14px;overflow-wrap:anywhere;line-height:1.4}.store-sub{font-size:11px;color:var(--muted);margin-top:4px}.status-chip{display:inline-block;background:#f1f4f7;color:#526779;border-radius:7px;padding:3px 7px;font-size:10px;font-weight:800}.status-chip.green{background:#e4f6ed;color:#146a50}.store-foot{border-top:1px solid #edf1f5;margin-top:12px;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}.store-foot span{font-size:11px;color:var(--muted)}.empty-state{padding:25px 18px;text-align:center;background:#fff;border:1px dashed #cdd8e3;border-radius:15px;color:var(--muted);font-size:13px}.empty-state .empty-symbol{font-size:28px;margin-bottom:8px}.product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.product-card{overflow:hidden;background:white;border:1px solid var(--line);border-radius:15px;min-width:0}.product-picture{height:130px;display:grid;place-items:center;background:#fff;padding:10px;position:relative}.product-picture img{width:100%;height:100%;object-fit:contain}.product-placeholder{display:grid;place-items:center;width:100%;height:100%;font-size:37px;color:#6b7f90;background:linear-gradient(145deg,#f4f7fa,#fff)}.product-content{padding:12px}.product-content h4{font-size:13px;margin:0 0 5px;overflow-wrap:anywhere}.product-content p{font-size:11px;color:var(--muted);margin:0 0 8px;min-height:32px;overflow-wrap:anywhere}.product-store{font-size:10px;color:#356b63;margin-bottom:7px}.product-price{font-weight:900;font-size:14px}.product-actions{display:flex;justify-content:space-between;align-items:center;gap:5px;margin-top:10px}.icon-button{border:1px solid var(--line);background:white;border-radius:10px;width:36px;height:36px;display:grid;place-items:center;color:var(--ink)}.icon-button.liked{color:#b52e54;background:#fff1f4;border-color:#ffd6df}.map-view{padding-top:20px}.map-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}.map-toolbar h2{margin:0;font-size:21px}.map-toolbar p{margin:4px 0 0;color:var(--muted);font-size:12px}.map-search{display:flex;gap:7px;min-width:min(100%,340px)}.map-search input{min-width:0;flex:1;border:1px solid var(--line);border-radius:11px;padding:10px;background:white}.map-layout{display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:stretch}.map-frame{position:relative;min-width:0;background:#e8eef1;border:1px solid var(--line);border-radius:18px;overflow:hidden}.map-canvas{height:510px;width:100%;background:#e9eef0}.map-side{background:white;border:1px solid var(--line);border-radius:18px;padding:13px;display:flex;flex-direction:column;min-height:510px}.map-side h3{font-size:14px;margin:2px 0 8px}.map-side-results{overflow:auto;max-height:420px;display:flex;flex-direction:column;gap:7px}.map-list-item{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #e9eef2;border-radius:12px}.map-list-item .name{flex:1;min-width:0;font-size:12px;font-weight:750;overflow-wrap:anywhere}.map-select-bar{display:none;position:absolute;z-index:600;right:12px;left:12px;bottom:12px;background:white;box-shadow:0 6px 25px rgba(0,0,0,.18);border-radius:14px;padding:12px;gap:8px;align-items:center;justify-content:space-between}.map-select-bar.visible{display:flex}.map-select-bar strong{display:block;font-size:12px}.map-select-bar span{display:block;font-size:10px;color:var(--muted)}.map-legend{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;color:var(--muted);font-size:11px}.map-legend span{display:flex;align-items:center;gap:5px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--teal)}.dot.grey{background:#aab5bd}.bottom-nav{position:fixed;z-index:1000;bottom:0;left:0;right:0;padding:8px max(15px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(15px,env(safe-area-inset-left));background:rgba(255,255,255,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;gap:12px}.bottom-nav button{border:0;background:transparent;color:var(--muted);padding:9px 28px;min-width:140px;border-radius:13px;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;gap:9px}.bottom-nav button.active{background:var(--navy);color:white}.bottom-nav .nav-icon{font-size:17px}.assistant-fab{position:fixed;z-index:900;bottom:85px;left:18px;border:0;border-radius:50%;width:54px;height:54px;background:#147d70;color:white;box-shadow:0 8px 22px rgba(20,125,112,.35);font-size:22px}.page-footer{padding:20px 0;color:var(--muted);font-size:11px;border-top:1px solid var(--line);margin-top:28px}.page-footer a{color:var(--teal)}dialog{border:1px solid var(--line);padding:0;border-radius:20px;width:min(620px,calc(100% - 24px));max-height:88vh;overflow:auto;box-shadow:0 20px 80px rgba(8,28,43,.28);color:var(--ink)}dialog::backdrop{background:rgba(8,25,40,.54);backdrop-filter:blur(3px)}.dialog-head{position:sticky;top:0;z-index:5;background:white;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px}.dialog-head h3{font-size:17px;margin:0}.dialog-body{padding:18px}.dialog-close{border:0;background:#f1f4f7;border-radius:50%;width:34px;height:34px;font-size:18px}.dialog-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}.field label{font-size:12px;font-weight:800}.field input,.field textarea,.field select{border:1px solid #d6e0e8;border-radius:11px;background:white;padding:11px;color:var(--ink);width:100%}.field textarea{min-height:80px;resize:vertical}.form-note{font-size:11px;color:var(--muted);margin:0 0 10px}.detail-title{display:flex;align-items:center;gap:12px;margin-bottom:14px}.detail-title h2{margin:0;font-size:20px;overflow-wrap:anywhere}.detail-title p{margin:4px 0 0;color:var(--muted);font-size:12px}.detail-panel{background:#f6f8fa;border-radius:13px;padding:12px;margin:12px 0;font-size:12px}.detail-panel strong{display:block;margin-bottom:3px}.local-only{border-right:3px solid var(--gold);padding:7px 10px;background:#fff9ed;color:#735a24;font-size:11px;border-radius:5px}.chat-log{display:flex;flex-direction:column;gap:10px;min-height:150px;max-height:300px;overflow:auto;padding:4px 0 12px}.chat-message{padding:11px 13px;border-radius:13px;max-width:92%;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.chat-message.bot{background:#eff6f4;align-self:flex-start}.chat-message.user{background:var(--navy);color:white;align-self:flex-end}.chat-form{display:flex;gap:8px}.chat-form input{flex:1;min-width:0;border:1px solid var(--line);border-radius:11px;padding:10px}.toast{position:fixed;z-index:2000;bottom:155px;left:50%;transform:translateX(-50%);background:#102a43;color:white;padding:11px 16px;border-radius:12px;box-shadow:var(--shadow);font-size:12px;max-width:calc(100% - 30px);text-align:center;display:none}.toast.show{display:block}.hidden{display:none!important}.loading-line{height:4px;background:#e3eeea;border-radius:999px;overflow:hidden;margin-top:8px}.loading-line span{display:block;height:100%;width:12%;background:var(--teal);transition:width .2s}.leaflet-popup-content{font-family:system-ui,Tahoma,Arial,sans-serif;direction:rtl;text-align:right}
+    @media(max-width:820px){.cards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.map-layout{grid-template-columns:1fr}.map-side{min-height:0}.map-side-results{max-height:220px}.map-canvas{height:440px}.map-toolbar{align-items:flex-start}.map-search{width:100%}.banner-slot{grid-template-columns:1fr auto}.header-inner{align-items:flex-start}.brand p{max-width:190px}}
+    @media(max-width:520px){.shell{padding-left:12px;padding-right:12px}.site-header{padding-top:13px;border-radius:0 0 21px 21px}.header-inner{padding:0 12px}.brand-mark{width:42px;height:42px;border-radius:13px}.brand h1{font-size:16px}.brand p{font-size:10px;max-width:145px}.head-actions .button{padding:9px 10px;font-size:11px}.hero{padding-top:18px}.hero h2{font-size:24px}.hero p{font-size:12px}.search-wrap{flex-wrap:wrap}.search-wrap input{flex-basis:65%}.search-tools{width:100%;display:grid;grid-template-columns:1fr 1fr}.search-tools button{width:100%}.cards-grid{gap:8px}.store-card{padding:11px;border-radius:13px}.store-avatar{width:37px;height:37px}.store-title{font-size:12px}.store-sub{font-size:10px}.store-foot{align-items:flex-start;flex-direction:column}.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.product-picture{height:120px}.section-head h2,.section-head h3{font-size:16px}.section-head{align-items:flex-start}.banner-slot{padding:15px;gap:8px}.banner-slot h3{font-size:14px}.banner-slot p{font-size:11px}.banner-icon{width:42px;height:42px;font-size:24px}.ad-empty{align-items:flex-start}.stats-row{font-size:11px}.bottom-nav{gap:5px}.bottom-nav button{min-width:0;flex:1;padding:10px 8px;font-size:12px}.assistant-fab{left:12px;bottom:82px;width:49px;height:49px}.map-canvas{height:390px}.map-select-bar{right:7px;left:7px;bottom:7px;padding:9px}.map-select-bar .button{padding:8px 10px}.form-grid{grid-template-columns:1fr}.dialog-body{padding:14px}.page-footer{font-size:10px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">إب</div>
+        <div><h1>إب ماركت</h1><p>الدليل الرقمي وأسماء المنشآت في مدينة إب</p></div>
+      </div>
+      <div class="head-actions">
+        <button class="button button-light" id="openNewStore">＋ أضف متجرًا</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="homeView">
+      <div class="hero">
+        <span class="eyebrow">دليل واحد لأسواق إب</span>
+        <h2>ابحث عن اسم المتجر، ثم أكمل بياناته الموثوقة.</h2>
+        <p>ابدأ من قائمة الأسماء المستوردة، واستكشف المواقع التي أضافها مستخدمون محليًا. لن نعرض عنوانًا أو هاتفًا أو دبوس خريطة من دون بيانات موثقة.</p>
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="ابحث باسم متجر أو سلعة..." aria-label="بحث شامل">
+          <div class="search-tools">
+            <button class="button button-primary" id="searchButton">بحث</button>
+            <button class="button button-outline" id="imageSearchButton" title="مطابقة الصور غير مفعلة في هذه النسخة">▧ بحث بالصورة</button>
+          </div>
+        </div>
+        <div class="stats-row">
+          <span class="stat-pill" id="loadedCount">جارٍ تحميل قائمة الأسماء…</span>
+          <span class="small muted" id="loadState">تظهر الأسماء المستوردة دون عناوين أو أرقام أو إحداثيات.</span>
+        </div>
+        <div class="loading-line" id="loadProgress"><span id="loadProgressFill"></span></div>
+      </div>
+
+      <div class="notice">
+        <span aria-hidden="true">ⓘ</span>
+        <div><strong>شفافية البيانات</strong>المصدر الأصلي يضم «اسم المنشأة أو المعلم». استوردنا عمود الاسم فقط؛ لذا تظهر كل الأسماء بحالة «غير موثق» حتى يراجع أحدهم بيانات النشاط ويحدد موقعه. تحديد الموقع في هذه النسخة يُحفظ على جهازك فقط.</div>
+      </div>
+
+      <section class="section" aria-labelledby="promoTitle">
+        <div class="banner-slot">
+          <div class="ad-empty">
+            <div>
+              <h3 id="promoTitle">الإعلانات الممولة ذات الصلة</h3>
+              <p>هذه مساحة الإعلانات المخصصة للمنصة. لا توجد حملات منشورة في النسخة الأولية.</p>
+            </div>
+            <span class="tag">إعلان</span>
+          </div>
+          <div class="banner-icon" aria-hidden="true">✦</div>
+        </div>
+      </section>
+
+      <section class="section" id="followSection">
+        <div class="section-head">
+          <div><h2>المتاجر التي تتابعها</h2><p>قائمة خاصة محفوظة على هذا الجهاز فقط.</p></div>
+          <button class="button button-ghost button-small" id="showFollowed">عرض المتابعة</button>
+        </div>
+        <div id="followedGrid" class="cards-grid"></div>
+      </section>
+
+      <section class="section" id="directorySection">
+        <div class="section-head">
+          <div><h2 id="directoryTitle">اكتشف أسماء المنشآت</h2><p id="directorySubtitle">ابحث في الأسماء المستوردة أو تصفّح القائمة.</p></div>
+          <div class="section-actions">
+            <select id="directoryFilter" aria-label="تصفية القائمة">
+              <option value="all">كل الأسماء</option>
+              <option value="local">المضافة محليًا</option>
+              <option value="followed">المتابعة فقط</option>
+              <option value="located">لها موقع محلي</option>
+            </select>
+          </div>
+        </div>
+        <div id="directoryGrid" class="cards-grid">
+          <div class="empty-state"><div class="empty-symbol">⌕</div>جارٍ تحميل بيانات الأسماء…</div>
+        </div>
+        <div style="text-align:center;margin-top:14px"><button class="button button-outline hidden" id="loadMore">عرض المزيد</button></div>
+      </section>
+
+      <section class="section" id="productsSection">
+        <div class="section-head">
+          <div><h2>كتالوج المنتجات</h2><p>المنتجات التي أُضيفت للتجربة على هذا الجهاز.</p></div>
+        </div>
+        <div id="productGrid" class="product-grid"></div>
+      </section>
+    </section>
+
+    <section id="mapView" class="map-view hidden">
+      <div class="map-toolbar">
+        <div><h2>الخريطة التفاعلية</h2><p>الخريطة تعرض فقط المواقع التي تم تحديدها يدويًا في هذه النسخة.</p></div>
+        <div class="map-search"><input id="mapSearch" type="search" placeholder="ابحث عن اسم لتحديد موقعه"><button id="mapSearchBtn" class="button button-primary">بحث</button></div>
+      </div>
+      <div class="notice"><span aria-hidden="true">📍</span><div><strong>لم نستورد إحداثيات الملف</strong>اختر اسم منشأة من القائمة الجانبية ثم حدّد مكانها على الخريطة. العلامات التي تضيفها محلية وغير مرئية للمستخدمين الآخرين حتى ربط الخادم المشترك.</div></div>
+      <div class="map-layout">
+        <div class="map-frame">
+          <div id="mapCanvas" class="map-canvas" role="application" aria-label="خريطة مدينة إب"></div>
+          <div id="mapSelectBar" class="map-select-bar">
+            <div><strong id="mapSelectName">حدد الموقع</strong><span id="mapSelectCoords">اضغط على الخريطة لتحديد الإحداثيات</span></div>
+            <button id="confirmLocation" class="button button-primary button-small" disabled>تأكيد الموقع</button>
+          </div>
+        </div>
+        <aside class="map-side">
+          <h3>أسماء يمكنك استكشافها</h3>
+          <p class="small muted" id="mapListCaption">ابحث بالاسم ثم اختر «تحديد الموقع» لتثبيت دبوس محلي.</p>
+          <div id="mapResults" class="map-side-results"></div>
+        </aside>
+      </div>
+      <div class="map-legend"><span><i class="dot"></i>موقع محدد على هذا الجهاز</span><span><i class="dot grey"></i>اسم بلا إحداثيات مستوردة</span></div>
+    </section>
+
+    <footer class="page-footer">
+      <strong>إب ماركت — نسخة تأسيسية</strong><br>
+      البيانات المستوردة أسماء فقط. المتابعة والمواقع والمنتجات التجريبية تُحفظ محليًا؛ لا يوجد تسجيل دخول أو بيع أو دفع أو توصيل حقيقي بعد.
+      <div style="margin-top:8px"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">مساهمو OpenStreetMap</a> · خرائط Leaflet</div>
+    </footer>
+  </main>
+
+  <nav class="bottom-nav" aria-label="التنقل الرئيسي">
+    <button class="active" data-tab="home" aria-current="page"><span class="nav-icon">⌂</span>الرئيسية</button>
+    <button data-tab="map"><span class="nav-icon">⌖</span>الخريطة</button>
+  </nav>
+  <button class="assistant-fab" id="assistantFab" aria-label="افتح مساعد البحث" title="مساعد بحث تجريبي">✳</button>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="storeDialog">
+    <div class="dialog-head"><h3>صفحة المنشأة</h3><button class="dialog-close" data-close="storeDialog" aria-label="إغلاق">×</button></div>
+    <div class="dialog-body" id="storeDialogContent"></div>
+  </dialog>
+
+  <dialog id="newStoreDialog">
+    <div class="dialog-head"><h3>إضافة متجر جديد</h3><button class="dialog-close" data-close="newStoreDialog" aria-label="إغلاق">×</button></div>
+    <div class="dialog-body">
+      <p class="form-note">يتطلب إنشاء السجل اسمًا فريدًا وموقعًا جغرافيًا. سيتم حفظه في جهازك فقط، وليس نشره على قاعدة عامة.</p>
+      <form id="newStoreForm">
+        <div class="field"><label for="newStoreName">اسم المتجر *</label><input id="newStoreName" required maxlength="120" placeholder="اكتب الاسم التجاري"></div>
+        <div class="field"><label for="newStoreCategory">النشاط (اختياري)</label><input id="newStoreCategory" maxlength="80" placeholder="مثال: ملابس، عطور، غذائيات"></div>
+        <div class="field"><label for="newStoreDescription">وصف مختصر (اختياري)</label><textarea id="newStoreDescription" maxlength="300" placeholder="نبذة قصيرة عن النشاط"></textarea></div>
+        <button type="submit" class="button button-primary">متابعة لتحديد الموقع</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="productDialog">
+    <div class="dialog-head"><h3>إضافة منتج للكتالوج المحلي</h3><button class="dialog-close" data-close="productDialog" aria-label="إغلاق">×</button></div>
+    <div class="dialog-body">
+      <p class="form-note" id="productStoreCaption"></p>
+      <form id="productForm">
+        <div class="field"><label for="productName">اسم المنتج *</label><input id="productName" required maxlength="120" placeholder="اسم المنتج"></div>
+        <div class="form-grid">
+          <div class="field"><label for="productPrice">السعر (رقمي، اختياري)</label><input id="productPrice" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="field"><label for="productCategory">الفئة</label><input id="productCategory" maxlength="60" placeholder="الفئة"></div>
+        </div>
+        <div class="field"><label for="productDescription">وصف مختصر</label><textarea id="productDescription" maxlength="220" placeholder="معلومات مختصرة عن المنتج"></textarea></div>
+        <div class="field"><label for="productImageUrl">رابط صورة المنتج (اختياري)</label><input id="productImageUrl" type="url" placeholder="https://..."></div>
+        <p class="form-note">لا ترفع صورة أو بيانات خاصة. هذه النسخة لا تخزن الصور سحابيًا ولا تنشر المنتجات للآخرين.</p>
+        <button type="submit" class="button button-primary">حفظ في هذا الجهاز</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="assistantDialog">
+    <div class="dialog-head"><h3>مساعد البحث</h3><button class="dialog-close" data-close="assistantDialog" aria-label="إغلاق">×</button></div>
+    <div class="dialog-body">
+      <div class="local-only">مساعد تجريبي يعتمد على البحث النصي في الأسماء المحمّلة فقط، وليس نموذج ذكاء اصطناعي مستقلًا أو متصلًا ببيانات المخزون والأسعار.</div>
+      <div id="chatLog" class="chat-log"><div class="chat-message bot">مرحبًا. اكتب اسم متجر أو كلمة تبحث عنها، وسأبحث في قائمة الأسماء المتاحة.</div></div>
+      <form id="chatForm" class="chat-form"><input id="chatInput" required maxlength="180" placeholder="ما الذي تبحث عنه؟"><button class="button button-primary" type="submit">إرسال</button></form>
+    </div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (function(){
+      'use strict';
+      const $ = function(sel){ return document.querySelector(sel); };
+      const $$ = function(sel){ return Array.from(document.querySelectorAll(sel)); };
+      const SOURCE_INDEX = './data/index.json';
+      const DATA_PREFIX = './data/';
+      let sourceNames = [];
+      let localStores = readSaved('ibb:localStores', []);
+      let products = readSaved('ibb:products', []);
+      let followed = readSaved('ibb:followed', []);
+      let likedProducts = readSaved('ibb:likedProducts', []);
+      let locationOverrides = readSaved('ibb:locations', {});
+      let claims = readSaved('ibb:claims', []);
+      let currentQuery = '';
+      let currentFilter = 'all';
+      let pageSize = 30;
+      let currentStoreName = '';
+      let newStoreDraft = null;
+      let pendingLocationName = '';
+      let pendingNewStoreDraft = null;
+      let pendingLatLng = null;
+      let map = null;
+      let markerLayer = null;
+      let toastTimer = null;
+      let sourceReady = false;
+
+      function readSaved(key, fallback){
+        try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v === null ? fallback : v; }
+        catch(e){ return fallback; }
+      }
+      function saveSaved(key, value){
+        try { localStorage.setItem(key, JSON.stringify(value)); }
+        catch(e){ showToast('تعذر الحفظ محليًا؛ قد تكون مساحة التخزين ممتلئة.'); }
+      }
+      function escapeHTML(v){
+        return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+      function keyOf(v){
+        return String(v || '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');
+      }
+      function searchFold(v){
+        return keyOf(v).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
+      }
+      function showToast(message){
+        const el = $('#toast'); el.textContent = message; el.classList.add('show');
+        clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+      }
+      function showDialog(id){ const el = document.getElementById(id); if(el && typeof el.showModal === 'function') el.showModal(); else if(el) el.setAttribute('open','open'); }
+      function closeDialog(id){ const el = document.getElementById(id); if(el && typeof el.close === 'function') el.close(); else if(el) el.removeAttribute('open'); }
+      function setTab(tab){
+        const home = tab === 'home';
+        $('#homeView').classList.toggle('hidden', !home);
+        $('#mapView').classList.toggle('hidden', home);
+        $$('[data-tab]').forEach(function(b){
+          const active = b.dataset.tab === tab; b.classList.toggle('active', active);
+          if(active) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');
+        });
+        if(!home){
+          initMap();
+          setTimeout(function(){ if(map) map.invalidateSize(); }, 120);
+          renderMapResults($('#mapSearch').value || '');
+        }
+        window.scrollTo({top:0,behavior:'smooth'});
+      }
+      function allDirectoryStores(){
+        return sourceNames.map(function(name){ return {name:name, source:'imported'}; }).concat(localStores.map(function(s){ return {name:s.name,source:'local',store:s}; }));
+      }
+      function getLocalStore(name){ return localStores.find(function(s){ return keyOf(s.name) === keyOf(name); }) || null; }
+      function getLocation(name){
+        const local = getLocalStore(name);
+        if(local && Number.isFinite(Number(local.lat)) && Number.isFinite(Number(local.lng))) return {lat:Number(local.lat),lng:Number(local.lng),localOnly:true};
+        const k = keyOf(name), item = locationOverrides[k];
+        if(item && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng))) return {lat:Number(item.lat),lng:Number(item.lng),localOnly:true};
+        return null;
+      }
+      function hasFollowed(name){ return followed.indexOf(keyOf(name)) >= 0; }
+      function storeCard(name, source){
+        const loc = getLocation(name);
+        const followedState = hasFollowed(name);
+        return '<button class="store-card" type="button" data-action="open-store" data-name="'+escapeHTML(name)+'">'+
+          '<div class="store-top"><div class="store-avatar" aria-hidden="true">🏬</div><div class="store-info">'+
+          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط')+'</div></div></div>'+
+          '<div class="store-foot"><span>'+(loc?'📍 موقع محلي على هذا الجهاز':'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState?'green':'')+'">'+(followedState?'تتابعه':'غير موثق')+'</span></div></button>';
+      }
+      function renderDirectory(resetPage){
+        if(resetPage) pageSize = 30;
+        const q = searchFold(currentQuery);
+        let entries = allDirectoryStores();
+        if(currentFilter === 'local') entries = entries.filter(function(e){return e.source==='local';});
+        if(currentFilter === 'followed') entries = entries.filter(function(e){return hasFollowed(e.name);});
+        if(currentFilter === 'located') entries = entries.filter(function(e){return !!getLocation(e.name);});
+        if(q) entries = entries.filter(function(e){return searchFold(e.name).includes(q);});
+        const total = entries.length;
+        const visible = entries.slice(0,pageSize);
+        $('#directoryTitle').textContent = currentQuery ? 'نتائج البحث عن «'+currentQuery+'»' : (currentFilter==='followed'?'المتاجر المتابعة':currentFilter==='local'?'المتاجر المضافة محليًا':currentFilter==='located'?'الأسماء ذات المواقع المحلية':'اكتشف أسماء المنشآت');
+        $('#directorySubtitle').textContent = sourceReady ? (total.toLocaleString('ar')+' نتيجة مطابقة — الاسم وحده لا يثبت التوثيق.') : 'جارٍ تحميل قائمة الأسماء…';
+        $('#directoryGrid').innerHTML = visible.length ? visible.map(function(e){return storeCard(e.name,e.source);}).join('') :
+          '<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">⌕</div><strong>لا توجد نتائج مطابقة</strong><br>جرّب كلمة أقصر أو غيّر عامل التصفية.</div>';
+        $('#loadMore').classList.toggle('hidden', total <= pageSize);
+        $('#loadMore').textContent = 'عرض المزيد ('+Math.max(0,total-pageSize).toLocaleString('ar')+')';
+      }
+      function renderFollowed(){
+        const list = allDirectoryStores().filter(function(e){ return hasFollowed(e.name); }).slice(0,6);
+        $('#followedGrid').innerHTML = list.length ? list.map(function(e){return storeCard(e.name,e.source);}).join('') :
+          '<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">☆</div>لم تتابع أي متجر بعد. افتح صفحة أي اسم واضغط «متابعة» لإضافته إلى قائمتك الخاصة.</div>';
+      }
+      function safeImageUrl(url){
+        try { const parsed = new URL(url, window.location.href); return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? parsed.href : ''; }
+        catch(e){ return ''; }
+      }
+      function renderProducts(){
+        const host = $('#productGrid');
+        if(!products.length){
+          host.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">▧</div><strong>لا توجد منتجات مضافة بعد</strong><br>افتح صفحة اسم منشأة واضغط «إضافة منتج» لإضافة كتالوج تجريبي محلي.</div>';
+          return;
+        }
+        host.innerHTML = products.slice().reverse().map(function(p){
+          const img = safeImageUrl(p.imageUrl || '');
+          const liked = likedProducts.indexOf(p.id)>=0;
+          return '<article class="product-card"><div class="product-picture">'+(img?'<img loading="lazy" src="'+escapeHTML(img)+'" alt="'+escapeHTML(p.name)+'">':'<div class="product-placeholder" aria-hidden="true">▧</div>')+'</div>'+
+            '<div class="product-content"><h4>'+escapeHTML(p.name)+'</h4><p>'+escapeHTML(p.description || 'وصف غير مضاف')+'</p>'+
+            '<div class="product-store">'+escapeHTML(p.storeName)+'</div><div class="product-price">'+(p.price!=='' && p.price!=null?escapeHTML(Number(p.price).toLocaleString('ar')+' ر.ي.':'السعر غير مضاف')+'</div>'+
+            '<div class="product-actions"><button class="button button-outline button-small" data-action="open-store" data-name="'+escapeHTML(p.storeName)+'">المتجر</button><button class="icon-button '+(liked?'liked':'')+'" aria-label="إعجاب" data-action="like-product" data-id="'+escapeHTML(p.id)+'">'+(liked?'♥':'♡')+'</button></div></div></article>';
+        }).join('');
+      }
+      function renderStoreDetail(name){
+        currentStoreName = name;
+        const local = getLocalStore(name);
+        const loc = getLocation(name);
+        const isFollowing = hasFollowed(name);
+        const productList = products.filter(function(p){return keyOf(p.storeName)===keyOf(name);});
+        const claimSent = claims.indexOf(keyOf(name)) >= 0;
+        const locationText = loc ? 'إحداثيات حددها مستخدم على هذا الجهاز ('+loc.lat.toFixed(5)+', '+loc.lng.toFixed(5)+').' : 'لم يتم استيراد موقع جغرافي لهذا الاسم. يمكنك تحديده على الخريطة، وسيبقى محليًا على جهازك.';
+        $('#storeDialogContent').innerHTML =
+          '<div class="detail-title"><div class="store-avatar" style="width:54px;height:54px;font-size:25px">🏬</div><div><h2>'+escapeHTML(name)+'</h2><p>'+(local?'سجل أُضيف محليًا — غير موثق':'اسم من الملف — حالة النشاط غير متحققة')+'</p></div></div>'+
+          '<div class="local-only">لا يوجد في هذه النسخة تحقق من هوية المالك أو صحة النشاط. الاسم ليس توثيقًا للمتجر.</div>'+
+          '<div class="detail-panel"><strong>📍 الموقع</strong>'+escapeHTML(locationText)+(loc?'<div style="margin-top:8px"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+encodeURIComponent(loc.lat)+'&mlon='+encodeURIComponent(loc.lng)+'#map=17/'+encodeURIComponent(loc.lat)+'/'+encodeURIComponent(loc.lng)+'">فتح الموقع على OpenStreetMap</a></div>':'')+'</div>'+
+          '<div class="dialog-actions"><button class="button button-primary" id="followStoreBtn">'+(isFollowing?'إلغاء المتابعة':'＋ متابعة المتجر')+'</button><button class="button button-outline" id="locateStoreBtn">تحديد الموقع على الخريطة</button><button class="button button-outline" id="addProductBtn">＋ إضافة منتج</button><button class="button button-ghost" id="claimStoreBtn">'+(claimSent?'مطالبة مسجلة محليًا':'المطالبة بملكية المتجر')+'</button></div>'+
+          '<div class="section" style="margin-bottom:0"><div class="section-head"><div><h3>منتجات هذا المتجر</h3><p>المنتجات المضافة على هذا الجهاز فقط.</p></div></div>'+
+          (productList.length?'<div class="cards-grid">'+productList.map(function(p){return '<div class="store-card"><div class="store-title">'+escapeHTML(p.name)+'</div><div class="store-sub">'+escapeHTML(p.description||'وصف غير مضاف')+'</div><div class="store-foot"><span>'+(p.price!==''&&p.price!=null?escapeHTML(Number(p.price).toLocaleString('ar')+' ر.ي.'):'السعر غير مضاف')+'</span><span class="status-chip">عرض فقط</span></div></div>';}).join('')+'</div>':'<div class="empty-state">لم يضف أحد منتجات لهذا المتجر على هذا الجهاز بعد.</div>')+'</div>'+
+          '<p class="form-note" style="margin-top:14px">متابعة المتجر وإضافة المنتجات والمطالبة تحفظ بيانات تجريبية محليًا فقط؛ لا تصل إلى إدارة أو تاجر فعلي.</p>';
+        showDialog('storeDialog');
+        $('#followStoreBtn').onclick = function(){toggleFollow(name);renderStoreDetail(name);renderFollowed();renderDirectory(false);};
+        $('#locateStoreBtn').onclick = function(){beginLocationSelection(name,null);};
+        $('#addProductBtn').onclick = function(){closeDialog('storeDialog');openProductForm(name);};
+        $('#claimStoreBtn').onclick = function(){
+          if(claims.indexOf(keyOf(name))>=0){showToast('هذه المطالبة محفوظة محليًا بالفعل.');return;}
+          claims.push(keyOf(name));saveSaved('ibb:claims',claims);renderStoreDetail(name);showToast('حُفظت مطالبة تجريبية على هذا الجهاز، ولم تُرسل لأي جهة.');
+        };
+      }
+      function toggleFollow(name){
+        const k=keyOf(name);
+        if(followed.indexOf(k)>=0){followed=followed.filter(function(x){return x!==k;});showToast('أُزيل المتجر من قائمة متابعتك الخاصة.');}
+        else{followed.push(k);showToast('أُضيف المتجر إلى متابعتك الخاصة.');}
+        saveSaved('ibb:followed',followed);
+      }
+      function openProductForm(name){
+        currentStoreName = name;
+        $('#productStoreCaption').textContent = 'المتجر: '+name+' — المنتج سيُحفظ محليًا فقط.';
+        $('#productForm').reset();
+        showDialog('productDialog');
+      }
+      function openNewStore(){
+        $('#newStoreForm').reset(); showDialog('newStoreDialog');
+      }
+      function beginLocationSelection(name, draft){
+        pendingLocationName = name;
+        pendingNewStoreDraft = draft || null;
+        pendingLatLng = null;
+        closeDialog('storeDialog'); closeDialog('newStoreDialog');
+        $('#mapSelectBar').classList.add('visible');
+        $('#mapSelectName').textContent = draft ? 'حدد موقع المتجر الجديد: '+name : 'حدد موقع: '+name;
+        $('#mapSelectCoords').textContent = 'اضغط على الخريطة لتحديد الدبوس.';
+        $('#confirmLocation').disabled = true;
+        setTab('map');
+        setTimeout(function(){if(map) map.invalidateSize();},180);
+      }
+      function clearLocationSelection(){
+        pendingLocationName='';pendingNewStoreDraft=null;pendingLatLng=null;
+        $('#mapSelectBar').classList.remove('visible');
+      }
+      function initMap(){
+        if(map) return;
+        if(!window.L){
+          $('#mapCanvas').innerHTML='<div class="empty-state">تعذر تحميل مكتبة الخريطة من الإنترنت. تحقق من الاتصال ثم أعد فتح الصفحة.</div>';
+          return;
+        }
+        map=L.map('mapCanvas',{zoomControl:true}).setView([13.9667,44.1833],13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+          maxZoom:19,attribution:'&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        markerLayer=L.layerGroup().addTo(map);
+        map.on('click',function(event){
+          if(!pendingLocationName){showToast('اختر اسمًا من القائمة الجانبية أولًا لتحديد موقعه.');return;}
+          pendingLatLng={lat:event.latlng.lat,lng:event.latlng.lng};
+          $('#mapSelectCoords').textContent=pendingLatLng.lat.toFixed(6)+', '+pendingLatLng.lng.toFixed(6);
+          $('#confirmLocation').disabled=false;
+        });
+        renderMarkers();
+      }
+      function renderMarkers(){
+        if(!map || !markerLayer) return;
+        markerLayer.clearLayers();
+        const all=[];
+        localStores.forEach(function(s){if(Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))all.push({name:s.name,lat:Number(s.lat),lng:Number(s.lng)});});
+        Object.keys(locationOverrides).forEach(function(k){
+          const v=locationOverrides[k];
+          if(v && Number.isFinite(Number(v.lat)) && Number.isFinite(Number(v.lng)) && !all.some(function(x){return keyOf(x.name)===k;}))all.push({name:v.name,lat:Number(v.lat),lng:Number(v.lng)});
+        });
+        all.forEach(function(s){
+          const marker=L.marker([s.lat,s.lng]).addTo(markerLayer);
+          marker.bindPopup('<strong>'+escapeHTML(s.name)+'</strong><br><span style="font-size:11px">موقع محلي غير موثق</span>');
+          marker.on('click',function(){setTimeout(function(){openStore(s.name);},100);});
+        });
+      }
+      function renderMapResults(query){
+        const q=searchFold(query||'');
+        let items=allDirectoryStores();
+        if(q)items=items.filter(function(s){return searchFold(s.name).includes(q);});
+        else items=items.filter(function(s){return !!getLocation(s.name);}).concat(items.filter(function(s){return !getLocation(s.name);}).slice(0,8));
+        items=items.slice(0,35);
+        $('#mapListCaption').textContent=q?('نتائج اسمية: '+items.length.toLocaleString('ar')+' معروض كحد أقصى 35.'):'المواقع المحددة محليًا أولًا، ثم عينة قصيرة من الأسماء.';
+        $('#mapResults').innerHTML=items.length?items.map(function(e){
+          const loc=getLocation(e.name);
+          return '<div class="map-list-item"><div class="name">'+escapeHTML(e.name)+'<div class="store-sub">'+(loc?'لديه موقع محلي':'بلا إحداثيات')+'</div></div><button class="button button-outline button-small" data-action="choose-location" data-name="'+escapeHTML(e.name)+'">تحديد الموقع</button></div>';
+        }).join(''):'<div class="empty-state">لا توجد أسماء مطابقة.</div>';
+      }
+      async function loadSourceNames(){
+        const cached=readSaved('ibb:names-cache-v1',[]);
+        if(Array.isArray(cached)&&cached.length>0){
+          sourceNames=cached.filter(function(x){return typeof x==='string'&&x.trim();});
+          sourceReady=true;updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');return;
+        }
+        try{
+          const idxResp=await fetch(SOURCE_INDEX,{cache:'no-cache'});
+          if(!idxResp.ok)throw new Error('تعذر قراءة فهرس الأسماء');
+          const idx=await idxResp.json();
+          const chunks=Array.isArray(idx.chunks)?idx.chunks:[];
+          if(!chunks.length)throw new Error('قائمة الملفات غير موجودة');
+          let loaded=0;
+          $('#loadState').textContent='جارٍ جلب '+idx.totalRecords.toLocaleString('ar')+' اسمًا…';
+          const arrays=[];
+          for(let i=0;i<chunks.length;i+=5){
+            const batch=chunks.slice(i,i+5);
+            const results=await Promise.all(batch.map(async function(file){
+              const resp=await fetch(DATA_PREFIX+file,{cache:'force-cache'});
+              if(!resp.ok)throw new Error('تعذر تحميل '+file);
+              const arr=await resp.json();
+              if(!Array.isArray(arr)||arr.some(function(x){return typeof x!=='string';}))throw new Error('صيغة بيانات غير متوقعة');
+              loaded+=arr.length;
+              $('#loadProgressFill').style.width=Math.round(loaded/idx.totalRecords*100)+'%';
+              return arr;
+            }));
+            arrays.push.apply(arrays,results);
+          }
+          sourceNames=arrays.flat();
+          sourceReady=true;
+          saveSaved('ibb:names-cache-v1',sourceNames);
+          updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');
+        }catch(error){
+          $('#loadState').textContent='تعذر تحميل القائمة الكاملة. تحقق من الاتصال ثم حدّث الصفحة.';
+          $('#directoryGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">!</div>'+escapeHTML(error.message||'حدث خطأ في تحميل البيانات')+'<br>يجب فتح الموقع على GitHub Pages أو عبر خادم ويب، وليس من مسار file:// مباشرة.</div>';
+          $('#loadedCount').textContent='قائمة الأسماء غير متاحة';
+        }
+      }
+      function updateLoadedState(){
+        const total=sourceNames.length+localStores.length;
+        $('#loadedCount').textContent=sourceNames.length.toLocaleString('ar')+' اسم مستورد';
+        $('#loadState').textContent=localStores.length.toLocaleString('ar')+' إضافة محلية على هذا الجهاز. لا تتضمن السجلات المستوردة مواقع أو أرقام هواتف.';
+        $('#loadProgressFill').style.width='100%';
+        $('#loadProgress').classList.add('hidden');
+      }
+      function addChatMessage(text,role){
+        const line=document.createElement('div');line.className='chat-message '+role;line.textContent=text;$('#chatLog').appendChild(line);$('#chatLog').scrollTop=$('#chatLog').scrollHeight;
+      }
+      function answerSearchAssistant(query){
+        const q=searchFold(query);
+        const storeMatches=allDirectoryStores().filter(function(s){return searchFold(s.name).includes(q);}).slice(0,5);
+        const productMatches=products.filter(function(p){return searchFold(p.name+' '+p.description+' '+p.storeName).includes(q);}).slice(0,4);
+        let answer='';
+        if(!q)answer='اكتب اسم متجر أو كلمة بحث.';
+        else if(!storeMatches.length&&!productMatches.length)answer='لم أجد تطابقًا في الأسماء أو المنتجات المحفوظة محليًا. هذا لا يعني أن السلعة غير موجودة في المدينة.';
+        else {
+          answer='وجدت '+storeMatches.length.toLocaleString('ar')+' اسم/أسماء منشآت تطابق بحثك.';
+          storeMatches.forEach(function(s,i){answer+='\n'+(i+1)+'. '+s.name+(getLocation(s.name)?' — موقع محلي محدد':' — دون موقع موثّق');});
+          if(productMatches.length){answer+='\n\nمنتجات محلية مضافة:';productMatches.forEach(function(p){answer+='\n• '+p.name+' — '+p.storeName+(p.price!==''?' ('+p.price+' ر.ي.)':'');});}
+          answer+='\n\nالنتائج من بيانات متاحة محليًا فقط، وليست تحققًا من توفر السلعة أو السعر الحالي.';
+        }
+        return answer;
+      }
+
+      document.addEventListener('click',function(event){
+        const tab=event.target.closest('[data-tab]');
+        if(tab){setTab(tab.dataset.tab);return;}
+        const action=event.target.closest('[data-action]');
+        if(action){
+          const name=action.dataset.name||'';
+          if(action.dataset.action==='open-store'){renderStoreDetail(name);return;}
+          if(action.dataset.action==='choose-location'){beginLocationSelection(name,null);return;}
+          if(action.dataset.action==='like-product'){
+            const id=action.dataset.id;
+            if(likedProducts.indexOf(id)>=0)likedProducts=likedProducts.filter(function(x){return x!==id;});else likedProducts.push(id);
+            saveSaved('ibb:likedProducts',likedProducts);renderProducts();return;
+          }
+        }
+        const close=event.target.closest('[data-close]');
+        if(close){closeDialog(close.dataset.close);}
+      });
+      $('#openNewStore').addEventListener('click',openNewStore);
+      $('#searchButton').addEventListener('click',function(){currentQuery=$('#searchInput').value.trim();renderDirectory(true);$('#directorySection').scrollIntoView({behavior:'smooth',block:'start'});});
+      $('#searchInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('#searchButton').click();}});
+      let debounce=null;
+      $('#searchInput').addEventListener('input',function(){clearTimeout(debounce);debounce=setTimeout(function(){currentQuery=$('#searchInput').value.trim();renderDirectory(true);},180);});
+      $('#directoryFilter').addEventListener('change',function(){currentFilter=this.value;renderDirectory(true);});
+      $('#loadMore').addEventListener('click',function(){pageSize+=30;renderDirectory(false);});
+      $('#showFollowed').addEventListener('click',function(){$('#directoryFilter').value='followed';currentFilter='followed';renderDirectory(true);$('#directorySection').scrollIntoView({behavior:'smooth'});});
+      $('#imageSearchButton').addEventListener('click',function(){showToast('البحث بالصورة يحتاج إلى ربط محرك مطابقة الصور؛ غير مفعل في النسخة الحالية.');});
+      $('#mapSearchBtn').addEventListener('click',function(){renderMapResults($('#mapSearch').value);});
+      $('#mapSearch').addEventListener('input',function(){renderMapResults(this.value);});
+      $('#confirmLocation').addEventListener('click',function(){
+        if(!pendingLocationName||!pendingLatLng)return;
+        const lat=Number(pendingLatLng.lat),lng=Number(pendingLatLng.lng);
+        if(!Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90||lat>90||lng < -180||lng>180){showToast('الإحداثيات غير صالحة.');return;}
+        if(pendingNewStoreDraft){
+          const draft=pendingNewStoreDraft;
+          if(allDirectoryStores().some(function(s){return keyOf(s.name)===keyOf(draft.name);})){showToast('هذا الاسم موجود بالفعل؛ لا يمكن إنشاء اسم مكرر.');clearLocationSelection();return;}
+          localStores.push({name:draft.name,category:draft.category,description:draft.description,lat:lat,lng:lng,ownerVerified:false,sellingEnabled:false,createdAt:new Date().toISOString(),products:[]});
+          saveSaved('ibb:localStores',localStores);
+          showToast('أُضيف الاسم مع موقع محلي على هذا الجهاز؛ لم يتم نشره أو توثيقه.');
+        }else{
+          locationOverrides[keyOf(pendingLocationName)]={name:pendingLocationName,lat:lat,lng:lng,localOnly:true,updatedAt:new Date().toISOString()};
+          saveSaved('ibb:locations',locationOverrides);
+          showToast('حُفظ موقع محلي لهذا الاسم على جهازك فقط.');
+        }
+        clearLocationSelection();renderMarkers();renderDirectory(false);renderFollowed();renderMapResults($('#mapSearch').value||'');
+      });
+      $('#newStoreForm').addEventListener('submit',function(event){
+        event.preventDefault();
+        const name=$('#newStoreName').value.trim();
+        if(!name){showToast('اكتب اسم المتجر أولًا.');return;}
+        if(allDirectoryStores().some(function(s){return keyOf(s.name)===keyOf(name);})){showToast('الاسم موجود في الدليل بالفعل. افتح سجله وحدد موقعه بدل إنشاء اسم مكرر.');return;}
+        const draft={name:name,category:$('#newStoreCategory').value.trim(),description:$('#newStoreDescription').value.trim()};
+        beginLocationSelection(name,draft);
+      });
+      $('#productForm').addEventListener('submit',function(event){
+        event.preventDefault();
+        const name=$('#productName').value.trim();
+        if(!name){showToast('اكتب اسم المنتج.');return;}
+        const price=$('#productPrice').value.trim();
+        const img=safeImageUrl($('#productImageUrl').value.trim());
+        if($('#productImageUrl').value.trim()&&!img){showToast('رابط الصورة يجب أن يبدأ بـ http أو https.');return;}
+        products.push({id:'p-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),storeName:currentStoreName,name:name,price:price,category:$('#productCategory').value.trim(),description:$('#productDescription').value.trim(),imageUrl:img,createdAt:new Date().toISOString()});
+        saveSaved('ibb:products',products);closeDialog('productDialog');renderProducts();renderStoreDetail(currentStoreName);showToast('حُفظ المنتج محليًا. لم يُنشر في متجر عام.');
+      });
+      $('#assistantFab').addEventListener('click',function(){showDialog('assistantDialog');setTimeout(function(){$('#chatInput').focus();},100);});
+      $('#chatForm').addEventListener('submit',function(event){
+        event.preventDefault();const q=$('#chatInput').value.trim();if(!q)return;
+        addChatMessage(q,'user');$('#chatInput').value='';
+        setTimeout(function(){addChatMessage(answerSearchAssistant(q),'bot');},50);
+      });
+      window.addEventListener('storage',function(){localStores=readSaved('ibb:localStores',[]);products=readSaved('ibb:products',[]);followed=readSaved('ibb:followed',[]);likedProducts=readSaved('ibb:likedProducts',[]);locationOverrides=readSaved('ibb:locations',{});renderDirectory(false);renderFollowed();renderProducts();renderMarkers();});
+      if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){/* PWA caching is optional */});});}
+      loadSourceNames().then(function(){renderProducts();renderFollowed();});
+    })();
+  </script>
+</body>
+</html>
