@@ -20,10 +20,10 @@ The central gap is between the implied promise of a citywide marketplace and the
 **Strengths:** Arabic RTL; responsive breakpoints; mobile bottom navigation; visible focus styles; reduced-motion support; loading and empty states; explicit notice that imported data is names-only and unverified; lazy loading of Leaflet.
 
 **Findings**
-1. **P1 — Inactive image-search control:** the “بحث بالصورة” button only reports that matching is not implemented. Hide it until implemented or demote it to a clearly marked future feature.
-2. **P1 — Local-only submission expectation:** “أضف متجرًا” sounds public, but the entry stays on the current device. Rename it “إضافة محلية للتجربة” until shared persistence exists.
+1. **Mitigated — Inactive image-search control:** in commit e02279e, the button is disabled and labeled “بحث بالصورة — قريبًا” so it cannot masquerade as a working feature. Re-enable only after end-to-end image matching is implemented and tested.
+2. **Mitigated — Local-only submission expectation:** in commit e02279e, the CTA was shortened to “أضف محليًا” and given a tooltip explaining that the entry stays on this device. Keep the local-only warning in the submission flow.
 3. **P2 — Map mental model:** 11,060 names beside a city map can imply they are geolocated. Keep a persistent distinction between imported names and locally placed pins.
-4. **P2 — Search scope ambiguity:** the main placeholder mentions products, but imported source data contains names only; product matches are limited to products entered locally. Separate the scopes clearly.
+4. **Mitigated — Search scope ambiguity:** in commit e02279e, the main search prompt now says it searches establishment names. The experimental assistant remains explicitly local and can match locally entered products.
 5. **P2 — Mobile density:** the header, empty promotion slot, followed section, directory, product catalog, floating assistant, and fixed navigation compete for space. Consider collapsing empty sections.
 
 **Visual limitation:** code-only review; no pixel-level defect is claimed without a current screenshot.
@@ -60,11 +60,11 @@ The central gap is between the implied promise of a citywide marketplace and the
 ## Ranked improvement plan
 | Priority | Change | Why | Acceptance test |
 |---|---|---|---|
-| P1 | Align UI wording with prototype reality | Avoid implying verified/shared listings | Every create/save/map/catalog flow says local-only until backend integration |
+| P1 | Align all remaining UI wording with prototype reality | Avoid implying verified/shared listings | Review every create/save/map/catalog flow on device; core CTA and search wording were corrected in e02279e |
 | P1 | Test DNS and canonical deployment from multiple networks | Users must resolve the hostname | Resolve and open from mobile data and Wi-Fi; record time and results |
 | P1 | Verify Worker upload key is secret | Protect upload endpoint | Confirm binding type, rotate if exposed, test authorized/unauthorized upload without printing key |
 | P1 | Define shared persistence and auth before public submissions | Prevent data-loss and false shared-state expectations | Two devices see the same approved listing after authenticated submission |
-| P2 | Remove/demote inactive image-search affordance | Reduce dead ends | No prominent image-search control until tested end-to-end |
+| Done | Disable and relabel inactive image-search affordance | Reduce dead ends | Button disabled and labeled “قريبًا” in e02279e; keep disabled until end-to-end feature exists |
 | P2 | Add data-quality pipeline | Names alone are not a verified directory | Report normalized names, suspected duplicates, ambiguous branches, and reviewed records |
 | P2 | Move large cache to IndexedDB or bounded cache | Reduce quota/performance failures | Load all chunks on low-storage Android; refresh/offline tests pass |
 | P2 | Add automated UI/data checks | Catch missing chunks, stale cache, broken paths | CI validates chunk count, total records, schema, paths, and smoke flows |
