@@ -9,6 +9,13 @@
 
 The central gap is between the implied promise of a citywide marketplace and the actual capabilities. Existing warnings about unverified names and local-only behavior are valuable and should remain consistent.
 
+## Improvements applied in this review
+- Commit e02279e: clarified the directory search scope, made the image-search control visibly “coming soon” and disabled, clarified that a new entry is local-only, and corrected the product-image helper text so it no longer implies that the form uploads to R2.
+- Commit c653764: bumped the service-worker cache from v2 to v3 so installed PWA clients can replace the older cached shell after deployment.
+- Added the reusable project skill at .agents/skills/ibb-five-reviewers/SKILL.md.
+- Updated README deployment/data limitations and committed this report.
+- Validation workflow #10 passed for the UI copy change. Pages deployment #39 passed for that same code change. The latest documentation deployment was still running at the time of the last check; the v3 service-worker change needs its own fresh validation and deployment confirmation.
+
 ## Reviewer 1 — Product advocate / supporter
 **Keep:** Arabic-first local discovery, the existing names seed dataset, RTL responsive layout, search, map, and PWA foundation.
 
