@@ -19,8 +19,8 @@
 
 ## تشغيل ونشر الموقع
 
-1. افتح Settings → Pages في المستودع، واجعل Source هو GitHub Actions عند الحاجة.
-2. سيعمل Workflow المرفق عند الدفع إلى main؛ بعد نجاحه يظهر رابط Pages في صفحة Actions أو Settings → Pages.
+1. **يتطلب النشر تفعيلًا أوليًا من إعدادات المستودع**: افتح [Settings → Pages](https://github.com/h776117073-eng/IBB/settings/pages)، ثم في Build and deployment اختر Source = GitHub Actions. الفحص في 18 أكتوبر 2026 أظهر أن موقع Pages غير مفعّل بعد، ولذلك فشل إجراء Configure Pages وأعاد رابط الموقع 404.
+2. بعد تفعيل Pages، افتح [Actions](https://github.com/h776117073-eng/IBB/actions) وشغّل Deploy IBB Market to GitHub Pages يدويًا. لا تعتبر الموقع منشورًا إلا بعد نجاح التشغيل وفتح [رابط الموقع المتوقع](https://h776117073-eng.github.io/IBB/) بنجاح.
 3. لا يحتاج المشروع إلى build step أو مفاتيح API مدفوعة. الخريطة تعتمد على Leaflet وطبقات OpenStreetMap عبر الإنترنت.
 
 ## حدود النسخة الحالية
