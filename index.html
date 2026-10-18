@@ -25,7 +25,7 @@
         <div><h1>إب ماركت</h1><p>الدليل الرقمي وأسماء المنشآت في مدينة إب</p></div>
       </div>
       <div class="head-actions">
-        <button class="button button-light" id="openNewStore">＋ أضف متجرًا</button>
+        <button class="button button-light" id="openNewStore" title="يحفظ الاسم على هذا الجهاز فقط ولا ينشره للآخرين">＋ أضف محليًا</button>
       </div>
     </div>
   </header>
@@ -34,14 +34,14 @@
     <section id="homeView">
       <div class="hero">
         <span class="eyebrow">دليل واحد لأسواق إب</span>
-        <h2>ابحث عن اسم المتجر، ثم أكمل بياناته الموثوقة.</h2>
-        <p>ابدأ من قائمة الأسماء المستوردة، واستكشف المواقع التي أضافها مستخدمون محليًا. لن نعرض عنوانًا أو هاتفًا أو دبوس خريطة من دون بيانات موثقة.</p>
+        <h2>ابحث عن اسم منشأة، وساعد في استكمال بياناتها.</h2>
+        <p>ابدأ من قائمة الأسماء المستوردة. الملف لا يتضمن عناوين أو هواتف، وأي دبوس يضيفه المستخدم يدويًا يبقى محليًا وغير موثق.</p>
         <div class="search-wrap">
           <span class="search-icon" aria-hidden="true">⌕</span>
-          <input id="searchInput" type="search" autocomplete="off" placeholder="ابحث باسم متجر أو سلعة..." aria-label="بحث شامل">
+          <input id="searchInput" type="search" autocomplete="off" placeholder="ابحث عن اسم منشأة..." aria-label="البحث عن اسم منشأة">
           <div class="search-tools">
             <button class="button button-primary" id="searchButton">بحث</button>
-            <button class="button button-outline" id="imageSearchButton" title="مطابقة الصور غير مفعلة في هذه النسخة">▧ بحث بالصورة</button>
+            <button class="button button-outline" id="imageSearchButton" title="ميزة غير متاحة في النسخة الحالية" disabled>▧ بحث بالصورة — قريبًا</button>
           </div>
         </div>
         <div class="stats-row">
@@ -170,7 +170,7 @@
         </div>
         <div class="field"><label for="productDescription">وصف مختصر</label><textarea id="productDescription" maxlength="220" placeholder="معلومات مختصرة عن المنتج"></textarea></div>
         <div class="field"><label for="productImageUrl">رابط صورة المنتج (اختياري)</label><input id="productImageUrl" type="url" placeholder="https://..."></div>
-        <p class="form-note">يمكن وضع رابط صورة عامة من مكتبة Cloudflare R2. بيانات المنتج نفسها تُحفظ محليًا على هذا الجهاز في هذه النسخة.</p>
+        <p class="form-note">أدخل رابط صورة عامة يبدأ بـ http أو https؛ لا يوجد رفع صورة مباشر من هذه الواجهة. بيانات المنتج تُحفظ على هذا الجهاز فقط.</p>
         <button type="submit" class="button button-primary">حفظ في هذا الجهاز</button>
       </form>
     </div>
