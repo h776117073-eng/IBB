@@ -50,7 +50,7 @@ const manifest = readJson("manifest.webmanifest");
 if (!manifest.name || !manifest.start_url || manifest.display !== "standalone") {
   throw new Error("PWA manifest is missing required values");
 }
-if (!html.includes('href="./manifest.webmanifest"') || !html.includes('src="./sw.js"')) {
+if (!html.includes('href="./manifest.webmanifest"') || !html.includes("navigator.serviceWorker.register('./sw.js')")) {
   throw new Error("PWA manifest or service-worker registration is missing from the page");
 }
 
