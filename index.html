@@ -128,7 +128,7 @@
 
     <footer class="page-footer">
       <strong>إب ماركت — نسخة تأسيسية</strong><br>
-      البيانات المستوردة أسماء فقط. المتابعة والمواقع والمنتجات التجريبية تُحفظ محليًا؛ لا يوجد تسجيل دخول أو بيع أو دفع أو توصيل حقيقي بعد.
+      البيانات المستوردة أسماء فقط. الأسماء والمواقع والمنتجات التجريبية التي تُضاف من هذه الواجهة محفوظة محليًا ولا تتزامن بين المستخدمين. طبقة خرائط OpenStreetMap تحتاج اتصالًا؛ عدم الاتصال لا يعني أن الخريطة الأساسية متاحة دون إنترنت.
       <div style="margin-top:8px"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">مساهمو OpenStreetMap</a> · خرائط Leaflet</div>
     </footer>
   </main>
@@ -475,6 +475,7 @@
         const locationText = loc ? 'إحداثيات حددها مستخدم على هذا الجهاز ('+loc.lat.toFixed(5)+', '+loc.lng.toFixed(5)+').' : 'لم يتم استيراد موقع جغرافي لهذا الاسم. يمكنك تحديده على الخريطة، وسيبقى محليًا على جهازك.';
         $('#storeDialogContent').innerHTML =
           '<div class="detail-title"><div class="store-avatar" style="width:54px;height:54px;font-size:25px">'+(storeImage?'<img src="'+escapeHTML(storeImage)+'" alt="">':'🏬')+'</div><div><h2>'+escapeHTML(name)+'</h2><p>'+(local?'سجل أُضيف محليًا — غير منشور على قاعدة مشتركة':'اسم من الملف — يحتاج تحققًا')+'</p><span class="status-chip '+badge.className+'">'+escapeHTML(badge.label)+'</span></div></div>'+
+          (local&&local.logoUrl&&!storeImage?'<p><span class="status-chip yellow">صورة المتجر مخفية حتى مراجعتها</span></p>':'')+
           '<div class="local-only">العلامة الخضراء محجوزة لسجل يؤكده الخادم بعد مراجعة هوية التاجر. فحص نتائج الويب أو تحديد GPS لا يثبت الملكية. بيانات هذه الإضافة محلية فقط حتى تفعيل قاعدة البيانات المشتركة.</div>'+
           '<div class="detail-panel"><strong>📍 الموقع</strong>'+escapeHTML(locationText)+(loc?'<div style="margin-top:8px"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+encodeURIComponent(loc.lat)+'&mlon='+encodeURIComponent(loc.lng)+'#map=17/'+encodeURIComponent(loc.lat)+'/'+encodeURIComponent(loc.lng)+'">فتح الموقع على OpenStreetMap</a></div>':'')+'</div>'+
           '<div class="dialog-actions"><button class="button button-primary" id="followStoreBtn">'+(isFollowing?'إلغاء المتابعة':'＋ متابعة المتجر')+'</button><button class="button button-outline" id="locateStoreBtn">تحديد الموقع على الخريطة</button><button class="button button-outline" id="addProductBtn">＋ إضافة منتج</button><button class="button button-ghost" id="claimStoreBtn">'+(claimSent?'مطالبة مسجلة محليًا':'المطالبة بملكية المتجر')+'</button></div>'+
