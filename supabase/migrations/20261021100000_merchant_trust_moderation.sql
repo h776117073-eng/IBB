@@ -27,6 +27,7 @@ create table if not exists public.stores (
   moderation_status text not null default 'pending_review'
     check (moderation_status in ('pending_review','approved','rejected','suspended')),
   owner_identity_verified boolean not null default false,
+  verified_at timestamptz,
   selling_enabled boolean not null default false,
   logo_public_url text not null default '' check (char_length(logo_public_url) <= 1000),
   created_at timestamptz not null default now(),
@@ -37,7 +38,7 @@ create table if not exists public.stores (
   ),
   constraint stores_verified_guard check (
     verification_status <> 'verified' or
-    (owner_identity_verified = true and location_status = 'verified' and moderation_status = 'approved')
+    (owner_identity_verified = true and verified_at is not null and location_status = 'verified' and moderation_status = 'approved')
   ),
   constraint stores_selling_guard check (
     selling_enabled = false or
