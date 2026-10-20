@@ -231,6 +231,22 @@
       function searchFold(v){
         return keyOf(v).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
       }
+
+      // Deterministic, explainable relevance: exact name > name prefix > partial match.
+      // This ranks the existing names-only data; it does not imply product or AI search.
+      function searchRelevance(name, query){
+        const value = searchFold(name);
+        const q = searchFold(query);
+        if(!q || !value.includes(q)) return 0;
+        if(value === q) return 1000;
+        if(value.startsWith(q)) return 800;
+        const valueWords = value.split(/\\s+/);
+        const queryWords = q.split(/\\s+/).filter(Boolean);
+        const wordPrefixMatches = queryWords.filter(function(term){
+          return valueWords.some(function(word){ return word.startsWith(term); });
+        }).length;
+        return 200 + wordPrefixMatches * 25 + (value.indexOf(q) >= 0 ? 10 : 0);
+      }
       function showToast(message){
         const el = $('#toast'); el.textContent = message; el.classList.add('show');
         clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
@@ -279,7 +295,17 @@
         if(currentFilter === 'local') entries = entries.filter(function(e){return e.source==='local';});
         if(currentFilter === 'followed') entries = entries.filter(function(e){return hasFollowed(e.name);});
         if(currentFilter === 'located') entries = entries.filter(function(e){return !!getLocation(e.name);});
-        if(q) entries = entries.filter(function(e){return searchFold(e.name).includes(q);});
+        if(q) {
+          entries = entries.map(function(e, index) {
+            return {entry:e, score:searchRelevance(e.name, q), index:index};
+          }).filter(function(item) {
+            return item.score > 0;
+          }).sort(function(a, b) {
+            return b.score - a.score || a.index - b.index;
+          }).map(function(item) {
+            return item.entry;
+          });
+        }
         const total = entries.length;
         const visible = entries.slice(0,pageSize);
         $('#directoryTitle').textContent = currentQuery ? 'نتائج البحث عن «'+currentQuery+'»' : (currentFilter==='followed'?'المتاجر المتابعة':currentFilter==='local'?'المتاجر المضافة محليًا':currentFilter==='located'?'الأسماء ذات المواقع المحلية':'اكتشف أسماء المنشآت');
