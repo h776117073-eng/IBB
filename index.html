@@ -240,8 +240,8 @@
         if(!q || !value.includes(q)) return 0;
         if(value === q) return 1000;
         if(value.startsWith(q)) return 800;
-        const valueWords = value.split(/\\s+/);
-        const queryWords = q.split(/\\s+/).filter(Boolean);
+        const valueWords = value.split(/\s+/);
+        const queryWords = q.split(/\s+/).filter(Boolean);
         const wordPrefixMatches = queryWords.filter(function(term){
           return valueWords.some(function(word){ return word.startsWith(term); });
         }).length;
