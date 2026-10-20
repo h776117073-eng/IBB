@@ -71,6 +71,66 @@ if (searchHelpers.searchFold("آية") !== "ايه") {
   throw new Error("Arabic normalization smoke test failed");
 }
 
+
+const blockedTokensMatch = inlineScript[1].match(/const blockedModerationTokens = new Set\(\[[\s\S]*?\]\);/);
+const moderationNormaliseMatch = inlineScript[1].match(/function normalizeModerationText\(value\)\s*\{[\s\S]*?\n      \}/);
+const moderateTextMatch = inlineScript[1].match(/function validateUserText\(value, fieldName, required, maxLength\)\s*\{[\s\S]*?\n      \}/);
+const imageUrlMatch = inlineScript[1].match(/function validateSafeImageUrl\(value\)\s*\{[\s\S]*?\n      \}/);
+const badgeMatch = inlineScript[1].match(/function getStoreVerificationBadge\(store\)\s*\{[\s\S]*?\n      \}/);
+const coordsMatch = inlineScript[1].match(/function parseCoordinateInput\(value\)\s*\{[\s\S]*?\n      \}/);
+if (!blockedTokensMatch || !moderationNormaliseMatch || !moderateTextMatch || !imageUrlMatch || !badgeMatch || !coordsMatch) {
+  throw new Error("Store moderation, image gate, badge authority or coordinates helpers are missing");
+}
+const trustHelpers = vm.runInNewContext([
+  blockedTokensMatch[0], moderationNormaliseMatch[0], moderateTextMatch[0],
+  imageUrlMatch[0], badgeMatch[0], coordsMatch[0],
+  "({ validateUserText, validateSafeImageUrl, getStoreVerificationBadge, parseCoordinateInput })"
+].join("\n"), { URL });
+if (!trustHelpers.validateUserText("بقالة الورافي", "اسم المتجر", true, 120).ok) {
+  throw new Error("Legitimate Arabic store name should pass local text screening");
+}
+if (trustHelpers.validateUserText("متجر قحبة", "اسم المتجر", true, 120).ok) {
+  throw new Error("Blocked explicit content word passed local text screening");
+}
+if (trustHelpers.validateUserText("<script>alert(1)</script>", "اسم المتجر", true, 120).ok) {
+  throw new Error("HTML markup passed store-name screening");
+}
+if (trustHelpers.validateSafeImageUrl("http://example.com/image.jpg").ok) {
+  throw new Error("HTTP image URL should be rejected");
+}
+if (trustHelpers.validateSafeImageUrl("https://192.168.1.5/image.jpg").ok) {
+  throw new Error("Private-network image URL should be rejected");
+}
+if (!trustHelpers.validateSafeImageUrl("https://example.com/image.webp").ok) {
+  throw new Error("Ordinary HTTPS image URL should pass preliminary URL checks");
+}
+const parsedCoords = trustHelpers.parseCoordinateInput("https://www.google.com/maps/@13.9667,44.1833,17z");
+if (!parsedCoords || Math.abs(parsedCoords.lat - 13.9667) > 0.000001 || Math.abs(parsedCoords.lng - 44.1833) > 0.000001) {
+  throw new Error("Google Maps coordinate extraction smoke test failed");
+}
+const localFakeGreen = trustHelpers.getStoreVerificationBadge({
+  recordAuthority: "local-demo", verificationStatus: "verified",
+  ownerIdentityVerified: true, verifiedAt: "2026-10-21T00:00:00Z",
+  identityReviewAuthority: "approved"
+});
+if (localFakeGreen.state === "verified") {
+  throw new Error("A local record must never receive the verified green badge");
+}
+const serverGreen = trustHelpers.getStoreVerificationBadge({
+  recordAuthority: "ibb-server", verificationStatus: "verified",
+  ownerIdentityVerified: true, verifiedAt: "2026-10-21T00:00:00Z",
+  identityReviewAuthority: "approved"
+});
+if (serverGreen.state !== "verified" || serverGreen.className !== "green") {
+  throw new Error("Green badge should require server-authoritative identity verification");
+}
+if (trustHelpers.getStoreVerificationBadge({webEvidenceStatus: "found"}).className !== "yellow") {
+  throw new Error("Found web evidence should get the yellow review state");
+}
+if (trustHelpers.getStoreVerificationBadge({webEvidenceStatus: "not_found"}).className !== "red") {
+  throw new Error("No web result should get the red verification-pending state");
+}
+
 const manifest = readJson("manifest.webmanifest");
 if (!manifest.name || !manifest.start_url || manifest.display !== "standalone") {
   throw new Error("PWA manifest is missing required values");
