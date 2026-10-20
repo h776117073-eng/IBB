@@ -322,7 +322,7 @@
         } catch(e){return {ok:false,url:'',reason:'رابط الصورة غير صالح.'};}
       }
       function getStoreVerificationBadge(store){
-        if(store && store.recordAuthority==='ibb-server' && store.verificationStatus==='verified' && store.ownerIdentityVerified===true && store.verifiedAt && store.verifiedBy){
+        if(store && store.recordAuthority==='ibb-server' && store.verificationStatus==='verified' && store.ownerIdentityVerified===true && store.verifiedAt && store.identityReviewAuthority==='approved'){
           return {className:'green',label:'موثق بهوية التاجر',state:'verified'};
         }
         if(store && store.webEvidenceStatus==='found') return {className:'yellow',label:'جاري مراجعة نتيجة الويب',state:'pending_review'};
