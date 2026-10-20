@@ -163,7 +163,7 @@
   <dialog id="webReviewDialog">
     <div class="dialog-head"><h3>التحقق الأولي من الاسم عبر الويب</h3><button class="dialog-close" data-close="webReviewDialog" aria-label="إغلاق">×</button></div>
     <div class="dialog-body">
-      <div class="notice"><span aria-hidden="true">ⓘ</span><div><strong>حالة مؤقتة قبل ربط مزود بحث آلي</strong>هذا الإصدار لا يملك خدمة بحث ويب خلفية موصولة. افتح نتائج البحث العامة وراجعها ثم سجّل النتيجة؛ لا نعرض البحث اليدوي على أنه تحقق آلي.</div></div>
+      <div class="notice"><span aria-hidden="true">ⓘ</span><div><strong>البحث العام لا يثبت الملكية</strong>عند تهيئة نقطة بحث خلفية موثوقة تتم المعاينة تلقائيًا؛ وإلا افتح نتائج البحث العامة وراجعها يدويًا. البحث اليدوي لا يُعرض على أنه تحقق آلي.</div></div>
       <p id="webReviewStoreName" class="detail-title"></p>
       <a id="webSearchAnchor" class="button button-primary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/">فتح البحث في الويب</a>
       <div class="field" style="margin-top:14px"><label for="webEvidenceUrl">رابط نتيجة عامة ذات صلة (مطلوب إذا وجدت نتيجة)</label><input id="webEvidenceUrl" type="url" maxlength="1000" inputmode="url" placeholder="https://..."></div>
@@ -313,8 +313,11 @@
         try {
           const parsed=new URL(raw);
           if(parsed.protocol!=='https:' || parsed.username || parsed.password) return {ok:false,url:'',reason:'استخدم رابط صورة عام يبدأ بـ HTTPS دون اسم مستخدم أو كلمة مرور.'};
-          const host=parsed.hostname.toLowerCase();
-          if(host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host==='127.0.0.1'||host==='::1'||/^10\\./.test(host)||/^192\\.168\\./.test(host)||/^172\\.(1[6-9]|2\\d|3[01])\\./.test(host)) return {ok:false,url:'',reason:'لا يسمح بروابط صور تشير إلى جهاز أو شبكة خاصة.'};
+          const host=parsed.hostname.toLowerCase().replace(/^\[|\]$/g,'');
+          const parts=host.split('.');
+          const ipv4=parts.length===4 && parts.every(function(part){return /^\d+$/.test(part)&&Number(part)>=0&&Number(part)<=255;});
+          const privateV4=ipv4 && (parts[0]==='10'||(parts[0]==='192'&&parts[1]==='168')||(parts[0]==='172'&&Number(parts[1])>=16&&Number(parts[1])<=31)||(parts[0]==='127'));
+          if(host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host==='::1'||host==='0.0.0.0'||privateV4) return {ok:false,url:'',reason:'لا يسمح بروابط صور تشير إلى جهاز أو شبكة خاصة.'};
           return {ok:true,url:parsed.href};
         } catch(e){return {ok:false,url:'',reason:'رابط الصورة غير صالح.'};}
       }
@@ -333,6 +336,34 @@
       }
       function buildStoreWebSearchUrl(name){
         return 'https://www.google.com/search?q='+encodeURIComponent(String(name||'')+' إب اليمن متجر');
+      }
+      async function runConfiguredWebSearch(draft){
+        const configured=window.IBB_CONFIG && window.IBB_CONFIG.publicWebSearchEndpoint;
+        if(!configured) return false;
+        try{
+          const endpoint=new URL(configured,window.location.origin);
+          if(endpoint.origin!==window.location.origin || endpoint.protocol!==window.location.protocol) return false;
+          endpoint.searchParams.set('q',draft.name+' إب اليمن متجر');
+          const response=await fetch(endpoint.href,{method:'GET',headers:{'Accept':'application/json'},credentials:'same-origin',cache:'no-store'});
+          if(!response.ok) return false;
+          const payload=await response.json();
+          if(payload.status!=='found' && payload.status!=='not_found') return false;
+          let evidenceUrl='';
+          if(payload.status==='found'){
+            const evidence=validateEvidenceUrl(payload.evidenceUrl||'');
+            if(!evidence) return false;
+            evidenceUrl=evidence;
+          }
+          draft.webEvidenceStatus=payload.status;
+          draft.webEvidenceUrl=evidenceUrl;
+          draft.webSearchMode='automatic';
+          draft.webSearchProvider=String(payload.provider||'configured-server').slice(0,80);
+          draft.webSearchCheckedAt=new Date().toISOString();
+          return true;
+        }catch(e){return false;}
+      }
+      function validateEvidenceUrl(value){
+        try{const url=new URL(String(value||''));return url.protocol==='https:'?url.href:'';}catch(e){return '';}
       }
 
       function showToast(message){
@@ -769,12 +800,20 @@
         if(!descriptionCheck.ok){showToast(descriptionCheck.reason);return;}
         if(!logoResult.ok){showToast(logoResult.reason);return;}
         if(allDirectoryStores().some(function(s){return keyOf(s.name)===keyOf(name);})){showToast('الاسم موجود في الدليل بالفعل. افتح سجله بدل إنشاء اسم مكرر.');return;}
-        const draft={name:name,category:category,description:description,logoUrl:logoResult.url,webEvidenceStatus:'not_checked',webEvidenceUrl:'',webSearchCheckedAt:null};
+        const draft={name:name,category:category,description:description,logoUrl:logoResult.url,webEvidenceStatus:'not_checked',webEvidenceUrl:'',webSearchCheckedAt:null,webSearchMode:'manual'};
         pendingNewStoreDraft=draft;pendingLocationName=name;
-        $('#webReviewStoreName').textContent='الاسم المقترح: '+name+' — إب، اليمن';
-        $('#webSearchAnchor').href=buildStoreWebSearchUrl(name);
-        $('#webEvidenceUrl').value='';
-        showDialog('webReviewDialog');
+        closeDialog('newStoreDialog');
+        runConfiguredWebSearch(draft).then(function(automatic){
+          if(automatic){
+            showToast(draft.webEvidenceStatus==='found'?'وجد فحص الويب الآلي نتيجة عامة؛ ستظل قيد المراجعة.':'لم يجد فحص الويب الآلي نتيجة واضحة؛ يلزم التأكد من صحة البيانات.');
+            beginLocationSelection(draft.name,draft);
+            return;
+          }
+          $('#webReviewStoreName').textContent='الاسم المقترح: '+name+' — إب، اليمن';
+          $('#webSearchAnchor').href=buildStoreWebSearchUrl(name);
+          $('#webEvidenceUrl').value='';
+          showDialog('webReviewDialog');
+        });
       });
 
       $('#webFoundButton').addEventListener('click',function(){
@@ -787,6 +826,7 @@
         }else{showToast('أضف رابط نتيجة عامة قبل إرسالها للمراجعة.');return;}
         pendingNewStoreDraft.webEvidenceStatus='found';
         pendingNewStoreDraft.webEvidenceUrl=safeEvidence;
+        pendingNewStoreDraft.webSearchMode='manual';
         pendingNewStoreDraft.webSearchCheckedAt=new Date().toISOString();
         closeDialog('webReviewDialog');
         beginLocationSelection(pendingNewStoreDraft.name,pendingNewStoreDraft);
@@ -795,6 +835,7 @@
         if(!pendingNewStoreDraft){showToast('لا يوجد سجل بانتظار فحص الويب.');return;}
         pendingNewStoreDraft.webEvidenceStatus='not_found';
         pendingNewStoreDraft.webEvidenceUrl='';
+        pendingNewStoreDraft.webSearchMode='manual';
         pendingNewStoreDraft.webSearchCheckedAt=new Date().toISOString();
         closeDialog('webReviewDialog');
         beginLocationSelection(pendingNewStoreDraft.name,pendingNewStoreDraft);
