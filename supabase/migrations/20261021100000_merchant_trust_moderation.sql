@@ -34,11 +34,11 @@ create table if not exists public.stores (
   updated_at timestamptz not null default now(),
   constraint stores_lat_lon_pair check (
     (latitude is null and longitude is null) or
-    (latitude between -90 and 90 and longitude between -180 and 180)
+    (latitude is not null and longitude is not null and latitude between -90 and 90 and longitude between -180 and 180)
   ),
   constraint stores_verified_guard check (
     verification_status <> 'verified' or
-    (owner_identity_verified = true and verified_at is not null and location_status = 'verified' and moderation_status = 'approved')
+    (owner_identity_verified = true and verified_at is not null and latitude is not null and longitude is not null and location_status = 'verified' and moderation_status = 'approved')
   ),
   constraint stores_selling_guard check (
     selling_enabled = false or
