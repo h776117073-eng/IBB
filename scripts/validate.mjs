@@ -6,6 +6,7 @@ const root = process.cwd();
 const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8"));
 const index = readJson("data/index.json");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const trustSql = fs.readFileSync(path.join(root, "supabase/migrations/20261021100000_merchant_trust_moderation.sql"), "utf8");
 
 if (!Array.isArray(index.chunks) || index.chunks.length < 1) {
   throw new Error("data/index.json must contain a non-empty chunks array");
@@ -129,6 +130,28 @@ if (trustHelpers.getStoreVerificationBadge({webEvidenceStatus: "found"}).classNa
 }
 if (trustHelpers.getStoreVerificationBadge({webEvidenceStatus: "not_found"}).className !== "red") {
   throw new Error("No web result should get the red verification-pending state");
+}
+
+
+const requiredTrustSql = [
+  "alter table public.stores enable row level security",
+  "alter table public.store_claims enable row level security",
+  "alter table public.media_assets enable row level security",
+  "grant select on public.stores to anon, authenticated",
+  "stores_verified_guard",
+  "verification_status = 'verified'",
+  "owner_identity_verified = true",
+  "moderation_status = 'approved'",
+  "grant select, insert on public.media_assets to authenticated"
+];
+for (const fragment of requiredTrustSql) {
+  if (!trustSql.includes(fragment)) {
+    throw new Error("Trust-schema security invariant is missing: " + fragment);
+  }
+}
+if (!trustSql.includes("grant update (name, name_key, category, description, public_phone, website_url, address_text, latitude, longitude, location_source)") ||
+    trustSql.includes("grant update on public.stores to authenticated")) {
+  throw new Error("Store profile grants are not restricted to approved public-profile columns");
 }
 
 const manifest = readJson("manifest.webmanifest");
