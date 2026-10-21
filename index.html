@@ -563,7 +563,7 @@
         if(pendingNewStoreDraft){
           const draft=pendingNewStoreDraft;
           if(allDirectoryStores().some(function(s){return keyOf(s.name)===keyOf(draft.name);})){showToast('هذا الاسم موجود بالفعل؛ لا يمكن إنشاء سجل مكرر.');clearLocationSelection();return;}
-          localStores.push({name:draft.name,category:draft.category,description:draft.description,logoUrl:draft.logoUrl||'',lat:latitude,lng:longitude,locationSource:source||'manual',locationStatus:'pending_review',ownerVerified:false,ownerIdentityVerified:false,recordAuthority:'local-demo',verificationStatus:draft.webEvidenceStatus==='found'?'pending_review':'needs_verification',webEvidenceStatus:draft.webEvidenceStatus||'not_checked',webEvidenceUrl:draft.webEvidenceUrl||'',webSearchCheckedAt:draft.webSearchCheckedAt||null,imageModerationStatus:draft.logoUrl?'pending_review':'none',moderationAuthority:'local-demo',sellingEnabled:false,createdAt:new Date().toISOString()});
+          localStores.push({name:draft.name,category:draft.category,description:draft.description,logoUrl:draft.logoUrl||'',lat:latitude,lng:longitude,locationSource:source||'manual',locationStatus:'pending_review',ownerVerified:false,ownerIdentityVerified:false,recordAuthority:'local-demo',verificationStatus:draft.webEvidenceStatus==='found'?'pending_review':'needs_verification',webEvidenceStatus:draft.webEvidenceStatus||'not_checked',webEvidenceUrl:draft.webEvidenceUrl||'',webSearchCheckedAt:draft.webSearchCheckedAt||null,webSearchMode:draft.webSearchMode||'manual',webSearchProvider:draft.webSearchProvider||'',imageModerationStatus:draft.logoUrl?'pending_review':'none',moderationAuthority:'local-demo',sellingEnabled:false,createdAt:new Date().toISOString()});
           saveSaved('ibb:localStores',localStores);
           showToast(draft.webEvidenceStatus==='found'?'أُضيف السجل محليًا بعلامة صفراء لمراجعة نتيجة الويب؛ لم يتم التوثيق.':'أُضيف السجل محليًا بعلامة حمراء لاستكمال التأكد من البيانات؛ لم يتم التوثيق.');
         }else{
@@ -622,7 +622,7 @@
           return;
         }
         map=L.map('mapCanvas',{zoomControl:true}).setView([13.9667,44.1833],13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
           maxZoom:19,attribution:'&copy; OpenStreetMap contributors'
         }).addTo(map);
         markerLayer=L.layerGroup().addTo(map);
