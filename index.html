@@ -341,10 +341,11 @@
         const configured=window.IBB_CONFIG && window.IBB_CONFIG.publicWebSearchEndpoint;
         if(!configured) return false;
         try{
+          const apiOrigin=window.IBB_CONFIG && window.IBB_CONFIG.publicApiOrigin;
           const endpoint=new URL(configured,window.location.origin);
-          if(endpoint.origin!==window.location.origin || endpoint.protocol!==window.location.protocol) return false;
+          if(endpoint.protocol!=='https:' || (endpoint.origin!==window.location.origin && endpoint.origin!==apiOrigin)) return false;
           endpoint.searchParams.set('q',draft.name+' إب اليمن متجر');
-          const response=await fetch(endpoint.href,{method:'GET',headers:{'Accept':'application/json'},credentials:'same-origin',cache:'no-store'});
+          const response=await fetch(endpoint.href,{method:'GET',headers:{'Accept':'application/json'},credentials:endpoint.origin===window.location.origin?'same-origin':'omit',cache:'no-store'});
           if(!response.ok) return false;
           const payload=await response.json();
           if(payload.status!=='found' && payload.status!=='not_found') return false;
@@ -621,7 +622,7 @@
           });
           return;
         }
-        map=L.map('mapCanvas',{zoomControl:true}).setView([13.9667,44.1833],13);
+        map=L.map('mapCanvas',{zoomControl:true}).setView(pendingLatLng?[pendingLatLng.lat,pendingLatLng.lng]:[13.9667,44.1833],pendingLatLng?16:13);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
           maxZoom:19,attribution:'&copy; OpenStreetMap contributors'
         }).addTo(map);
