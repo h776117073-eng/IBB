@@ -407,12 +407,19 @@ def main() -> int:
     print("Loading the sourced 270-record public-directory seed...")
     seed = load_seed()
     print(f"Seed records: {len(seed)}; with decoded Plus Code coordinates: {sum(bool(x['latitude']) for x in seed)}")
-    print("Querying OpenStreetMap / Overpass...")
-    try:
-        osm = fetch_osm()
-    except Exception as exc:
-        print(f"OSM query failed; continuing with sourced seed only: {exc}")
+    osm_status = "skipped_by_configuration" if os.getenv("IBB_SKIP_OSM", "").strip() == "1" else "pending"
+    if os.getenv("IBB_SKIP_OSM", "").strip() == "1":
+        print("OpenStreetMap: skipped by configuration; using cached city directory and public seed sources.")
         osm = []
+    else:
+        print("Querying OpenStreetMap / Overpass...")
+        try:
+            osm = fetch_osm()
+            osm_status = "success" if osm else "empty_result"
+        except Exception as exc:
+            print(f"OSM query failed; continuing with sourced seed only: {exc}")
+            osm = []
+            osm_status = f"unavailable: {type(exc).__name__}: {exc}"
     print(f"OSM named business features: {len(osm)}")
     city_rows, city_stats = ([], {})
     try:
@@ -444,6 +451,7 @@ def main() -> int:
         "public_directory_seed_count": len(seed),
         "seed_with_plus_code_coordinates": sum(bool(x["latitude"]) for x in seed),
         "osm_business_feature_count": len(osm),
+        "osm_status": osm_status,
         **city_stats,
         "scrapegraph_candidate_count": len(scraped),
         "name_match_candidate_count": len(candidates),
