@@ -1,0 +1,21 @@
+name: Validate IBB Worker API
+on:
+  push:
+    branches: ["main"]
+    paths: ["worker/**","cloud-catalog.js","admin.html","index.html",".github/workflows/worker-validation.yml"]
+  pull_request:
+    paths: ["worker/**","cloud-catalog.js","admin.html","index.html"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/validate.mjs
+      - run: node --check worker/src/index.js
+      - run: node --test worker/tests/*.test.mjs
