@@ -272,8 +272,8 @@
         const followedState = hasFollowed(name);
         return '<button class="store-card" type="button" data-action="open-store" data-name="'+escapeHTML(name)+'">'+
           '<div class="store-top"><div class="store-avatar" aria-hidden="true">🏬</div><div class="store-info">'+
-          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط')+'</div></div></div>'+
-          '<div class="store-foot"><span>'+(loc?'📍 موقع محلي على هذا الجهاز':'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState?'green':'')+'">'+(followedState?'تتابعه':'غير موثق')+'</span></div></button>';
+          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='shared'?'بيانات مشتركة راجعها فريق المنصة':(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط'))+'</div></div></div>'+
+          '<div class="store-foot"><span>'+(loc?(loc.shared?'📍 موقع منشأة منشور':'📍 موقع محلي على هذا الجهاز'):'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState||source==='shared'?'green':'')+'">'+(followedState?'تتابعه':(source==='shared'?'تمت مراجعة بيانات الدليل':'غير موثق'))+'</span></div></button>';
       }
       function renderDirectory(resetPage){
         if(resetPage) pageSize = 30;
@@ -360,6 +360,8 @@
         pendingLocationName = name;
         pendingNewStoreDraft = draft || null;
         pendingLatLng = null;
+        $('#locationNeighborhood').value = '';
+        $('#publishLocationRequest').checked = false;
         closeDialog('storeDialog'); closeDialog('newStoreDialog');
         $('#mapSelectBar').classList.add('visible');
         $('#mapSelectName').textContent = draft ? 'حدد موقع المتجر الجديد: '+name : 'حدد موقع: '+name;
@@ -430,7 +432,7 @@
         if(!map || !markerLayer) return;
         markerLayer.clearLayers();
         const all=[];
-        localStores.forEach(function(s){if(Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))all.push({name:s.name,lat:Number(s.lat),lng:Number(s.lng)});});
+        localStores.forEach(function(s){if(Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))all.push({name:s.name,lat:Number(s.lat),lng:Number(s.lng),shared:!!s.shared});});
         Object.keys(locationOverrides).forEach(function(k){
           const v=locationOverrides[k];
           if(v && Number.isFinite(Number(v.lat)) && Number.isFinite(Number(v.lng)) && !all.some(function(x){return keyOf(x.name)===k;}))all.push({name:v.name,lat:Number(v.lat),lng:Number(v.lng)});
