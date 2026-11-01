@@ -28,12 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      SCRAPEGRAPH_API_KEY: ${ secrets.SCRAPEGRAPH_API_KEY }
-      OPENAI_API_KEY: ${ secrets.OPENAI_API_KEY }
-      SCRAPEGRAPH_MODEL: ${ vars.SCRAPEGRAPH_MODEL || 'openai/gpt-4o-mini' }
-      GDRIVE_SERVICE_ACCOUNT_JSON: ${ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }
-      GDRIVE_FOLDER_ID: ${ secrets.GDRIVE_FOLDER_ID }
-      IBB_BBOX: ${ vars.IBB_BBOX || '13.93,44.12,14.01,44.23' }
+      SCRAPEGRAPH_API_KEY: ${{ secrets.SCRAPEGRAPH_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SCRAPEGRAPH_MODEL: ${{ vars.SCRAPEGRAPH_MODEL || 'openai/gpt-4o-mini' }}
+      GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      IBB_BBOX: ${{ vars.IBB_BBOX || '13.93,44.12,14.01,44.23' }}
     steps:
       - name: Check out IBB repository
         uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
           python -m pip install -r requirements-ibb-enrichment.txt
 
       - name: Install ScrapeGraphAI and Chromium when an LLM key exists
-        if: ${ env.SCRAPEGRAPH_API_KEY != '' || env.OPENAI_API_KEY != '' }
+        if: ${{ env.SCRAPEGRAPH_API_KEY != '' || env.OPENAI_API_KEY != '' }}
         run: |
           python -m pip install "scrapegraphai==2.3.1"
           python -m playwright install --with-deps chromium
@@ -60,7 +60,7 @@ jobs:
         run: python scripts/enrich_ibb_directory.py
 
       - name: Upload result files as GitHub artifact
-        if: ${ always() }
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: ibb-directory-export
@@ -70,13 +70,13 @@ jobs:
           compression-level: 6
 
       - name: Upload ZIP to Google Drive when Drive secrets are configured
-        if: ${ env.GDRIVE_SERVICE_ACCOUNT_JSON != '' && env.GDRIVE_FOLDER_ID != '' }
+        if: ${{ env.GDRIVE_SERVICE_ACCOUNT_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
         run: |
           python -m pip install google-api-python-client google-auth
           python scripts/upload_to_drive.py out/ibb_directory_export.zip
 
       - name: Report missing Google Drive configuration
-        if: ${ env.GDRIVE_SERVICE_ACCOUNT_JSON == '' || env.GDRIVE_FOLDER_ID == '' }
+        if: ${{ env.GDRIVE_SERVICE_ACCOUNT_JSON == '' || env.GDRIVE_FOLDER_ID == '' }}
         run: |
           echo "Google Drive upload skipped: configure GDRIVE_SERVICE_ACCOUNT_JSON and GDRIVE_FOLDER_ID as repository Actions secrets."
           echo "The export remains available as the ibb-directory-export workflow artifact."
