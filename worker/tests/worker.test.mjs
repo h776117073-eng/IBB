@@ -1,0 +1,7 @@
+import test from "node:test";import assert from "node:assert/strict";import {norm,storeInput,productInput,safeImage} from "../src/index.js";
+test("Arabic normalization",()=>assert.equal(norm(" متجر\u00a0 إب "),"متجر إب"));
+test("valid location",()=>assert.equal(storeInput({name:"متجر اختبار",latitude:13.966,longitude:44.172}).latitude,13.966));
+test("invalid lat/lon/name rejected",()=>{assert.throws(()=>storeInput({name:"متجر",latitude:91,longitude:44}));assert.throws(()=>storeInput({name:" ",latitude:13,longitude:44}));assert.throws(()=>storeInput({name:"متجر",latitude:13,longitude:181}));});
+test("YER optional product price",()=>{const x=productInput({name:"منتج",store_name:"متجر",price:""});assert.equal(x.price,null);assert.equal(x.currency,"YER");});
+test("negative product price and unsafe image rejected",()=>{assert.throws(()=>productInput({name:"منتج",store_name:"متجر",price:-1}));assert.throws(()=>productInput({name:"منتج",store_name:"متجر",image_url:"javascript:alert(1)"}));});
+test("HTTPS image validation",()=>{assert.equal(safeImage("https://images.example/a.webp"),true);assert.equal(safeImage("http://images.example/a.webp"),false);assert.equal(safeImage("https://user:pass@images.example/a"),false);});

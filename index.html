@@ -15,7 +15,7 @@
     @media(max-width:820px){.cards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.map-layout{grid-template-columns:1fr}.map-side{min-height:0}.map-side-results{max-height:220px}.map-canvas{height:440px}.map-toolbar{align-items:flex-start}.map-search{width:100%}.banner-slot{grid-template-columns:1fr auto}.header-inner{align-items:flex-start}.brand p{max-width:190px}}
     @media(max-width:520px){.shell{padding-left:12px;padding-right:12px}.site-header{padding-top:13px;border-radius:0 0 21px 21px}.header-inner{padding:0 12px}.brand-mark{width:42px;height:42px;border-radius:13px}.brand h1{font-size:16px}.brand p{font-size:10px;max-width:145px}.head-actions .button{padding:9px 10px;font-size:11px}.hero{padding-top:18px}.hero h2{font-size:24px}.hero p{font-size:12px}.search-wrap{flex-wrap:wrap}.search-wrap input{flex-basis:65%}.search-tools{width:100%;display:grid;grid-template-columns:1fr 1fr}.search-tools button{width:100%}.cards-grid{gap:8px}.store-card{padding:11px;border-radius:13px}.store-avatar{width:37px;height:37px}.store-title{font-size:12px}.store-sub{font-size:10px}.store-foot{align-items:flex-start;flex-direction:column}.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.product-picture{height:120px}.section-head h2,.section-head h3{font-size:16px}.section-head{align-items:flex-start}.banner-slot{padding:15px;gap:8px}.banner-slot h3{font-size:14px}.banner-slot p{font-size:11px}.banner-icon{width:42px;height:42px;font-size:24px}.ad-empty{align-items:flex-start}.stats-row{font-size:11px}.bottom-nav{gap:5px}.bottom-nav button{min-width:0;flex:1;padding:10px 8px;font-size:12px}.assistant-fab{left:12px;bottom:82px;width:49px;height:49px}.map-canvas{height:390px}.map-select-bar{right:7px;left:7px;bottom:7px;padding:9px}.map-select-bar .button{padding:8px 10px}.form-grid{grid-template-columns:1fr}.dialog-body{padding:14px}.page-footer{font-size:10px}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
-  </style>
+  .map-select-info{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}.map-select-info input:not([type]){width:100%;max-width:260px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;font-size:12px}.share-location,.share-product{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700}.share-location input,.share-product input{width:auto;margin:0;accent-color:var(--teal)}</style>
 </head>
 <body>
   <header class="site-header">
@@ -112,10 +112,7 @@
       <div class="map-layout">
         <div class="map-frame">
           <div id="mapCanvas" class="map-canvas" role="application" aria-label="خريطة مدينة إب"></div>
-          <div id="mapSelectBar" class="map-select-bar">
-            <div><strong id="mapSelectName">حدد الموقع</strong><span id="mapSelectCoords">اضغط على الخريطة لتحديد الإحداثيات</span></div>
-            <button id="confirmLocation" class="button button-primary button-small" disabled>تأكيد الموقع</button>
-          </div>
+          <div id="mapSelectBar" class="map-select-bar"><div class="map-select-info"><strong id="mapSelectName">حدد الموقع</strong><span id="mapSelectCoords">اضغط على الخريطة لتحديد الإحداثيات</span><input id="locationNeighborhood" maxlength="100" placeholder="الحي أو الفرع (اختياري)" aria-label="الحي أو الفرع"><label class="share-location"><input id="publishLocationRequest" type="checkbox"> إرسال الموقع للمراجعة العامة</label><span class="small muted">لن يظهر للآخرين إلا بعد المراجعة، ولا يثبت ملكية المنشأة.</span></div><button id="confirmLocation" class="button button-primary button-small" disabled>تأكيد الموقع</button></div>
         </div>
         <aside class="map-side">
           <h3>أسماء يمكنك استكشافها</h3>
@@ -128,8 +125,8 @@
 
     <footer class="page-footer">
       <strong>إب ماركت — نسخة تأسيسية</strong><br>
-      البيانات المستوردة أسماء فقط. المتابعة والمواقع والمنتجات التجريبية تُحفظ محليًا؛ لا يوجد تسجيل دخول أو بيع أو دفع أو توصيل حقيقي بعد.
-      <div style="margin-top:8px"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">مساهمو OpenStreetMap</a> · خرائط Leaflet</div>
+      البيانات المستوردة أسماء فقط. المواقع والمنتجات المحلية خاصة بجهازك؛ المساهمات التي تختار إرسالها تُراجع قبل النشر. لا يوجد دفع أو توصيل حقيقي بعد.
+      <div id="cloudSyncStatus" class="small muted" style="margin-top:8px">البيانات المشتركة: جارٍ التحقق من الاتصال…</div><div style="margin-top:8px"><a href="./admin.html">إدارة مراجعات المنشآت والمنتجات</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">مساهمو OpenStreetMap</a> · خرائط Leaflet</div>
     </footer>
   </main>
 
@@ -148,7 +145,7 @@
   <dialog id="newStoreDialog">
     <div class="dialog-head"><h3>إضافة متجر جديد</h3><button class="dialog-close" data-close="newStoreDialog" aria-label="إغلاق">×</button></div>
     <div class="dialog-body">
-      <p class="form-note">يتطلب إنشاء السجل اسمًا فريدًا وموقعًا جغرافيًا. سيتم حفظه في جهازك فقط، وليس نشره على قاعدة عامة.</p>
+      <p class="form-note">يتطلب إنشاء السجل اسمًا وموقعًا جغرافيًا. الحفظ محلي افتراضيًا، ويمكن اختيار إرسال الموقع للمراجعة العامة من الخريطة.</p>
       <form id="newStoreForm">
         <div class="field"><label for="newStoreName">اسم المتجر *</label><input id="newStoreName" required maxlength="120" placeholder="اكتب الاسم التجاري"></div>
         <div class="field"><label for="newStoreCategory">النشاط (اختياري)</label><input id="newStoreCategory" maxlength="80" placeholder="مثال: ملابس، عطور، غذائيات"></div>
@@ -170,7 +167,9 @@
         </div>
         <div class="field"><label for="productDescription">وصف مختصر</label><textarea id="productDescription" maxlength="220" placeholder="معلومات مختصرة عن المنتج"></textarea></div>
         <div class="field"><label for="productImageUrl">رابط صورة المنتج (اختياري)</label><input id="productImageUrl" type="url" placeholder="https://..."></div>
-        <p class="form-note">أدخل رابط صورة عامة يبدأ بـ http أو https؛ لا يوجد رفع صورة مباشر من هذه الواجهة. بيانات المنتج تُحفظ على هذا الجهاز فقط.</p>
+        <p class="form-note">أدخل رابط صورة HTTPS عامة؛ لا يوجد رفع صورة مباشر. بيانات المنتج محلية افتراضيًا وتُنشر فقط بعد مراجعة الإدارة.</p>
+        <div class="field"><label for="productStoreNeighborhood">حي أو فرع المتجر (اختياري)</label><input id="productStoreNeighborhood" maxlength="100" placeholder="لتمييز فروع المتجر"></div>
+        <div class="field"><label class="share-product"><input id="publishProductRequest" type="checkbox"> إرسال المنتج للمراجعة العامة</label></div>
         <button type="submit" class="button button-primary">حفظ في هذا الجهاز</button>
       </form>
     </div>
@@ -253,14 +252,18 @@
         window.scrollTo({top:0,behavior:'smooth'});
       }
       function allDirectoryStores(){
-        return sourceNames.map(function(name){ return {name:name, source:'imported'}; }).concat(localStores.map(function(s){ return {name:s.name,source:'local',store:s}; }));
+        const shared=localStores.filter(function(s){return !!s.shared;}),byName=new Map(shared.map(function(s){return [keyOf(s.name),s];})),keys=new Set(sourceNames.map(keyOf));
+        const imported=sourceNames.map(function(n){const s=byName.get(keyOf(n));return s?{name:n,source:'shared',store:s}:{name:n,source:'imported'};});
+        const local=localStores.filter(function(s){return !s.shared;}).map(function(s){return {name:s.name,source:'local',store:s};});
+        const extra=shared.filter(function(s){return !keys.has(keyOf(s.name));}).map(function(s){return {name:s.name,source:'shared',store:s};});
+        return imported.concat(local,extra);
       }
-      function getLocalStore(name){ return localStores.find(function(s){ return keyOf(s.name) === keyOf(name); }) || null; }
+      function getLocalStore(name){return localStores.find(function(s){return s.shared&&keyOf(s.name)===keyOf(name);})||localStores.find(function(s){return !s.shared&&keyOf(s.name)===keyOf(name);})||null;}
       function getLocation(name){
-        const local = getLocalStore(name);
-        if(local && Number.isFinite(Number(local.lat)) && Number.isFinite(Number(local.lng))) return {lat:Number(local.lat),lng:Number(local.lng),localOnly:true};
-        const k = keyOf(name), item = locationOverrides[k];
-        if(item && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng))) return {lat:Number(item.lat),lng:Number(item.lng),localOnly:true};
+        const s=getLocalStore(name);
+        if(s&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))return {lat:Number(s.lat),lng:Number(s.lng),localOnly:!s.shared,shared:!!s.shared};
+        const k=keyOf(name),v=locationOverrides[k];
+        if(v&&Number.isFinite(Number(v.lat))&&Number.isFinite(Number(v.lng)))return {lat:Number(v.lat),lng:Number(v.lng),localOnly:true,shared:false};
         return null;
       }
       function hasFollowed(name){ return followed.indexOf(keyOf(name)) >= 0; }
@@ -269,8 +272,8 @@
         const followedState = hasFollowed(name);
         return '<button class="store-card" type="button" data-action="open-store" data-name="'+escapeHTML(name)+'">'+
           '<div class="store-top"><div class="store-avatar" aria-hidden="true">🏬</div><div class="store-info">'+
-          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط')+'</div></div></div>'+
-          '<div class="store-foot"><span>'+(loc?'📍 موقع محلي على هذا الجهاز':'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState?'green':'')+'">'+(followedState?'تتابعه':'غير موثق')+'</span></div></button>';
+          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='shared'?'بيانات مشتركة راجعها فريق المنصة':(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط'))+'</div></div></div>'+
+          '<div class="store-foot"><span>'+(loc?(loc.shared?'📍 موقع منشأة منشور':'📍 موقع محلي على هذا الجهاز'):'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState||source==='shared'?'green':'')+'">'+(followedState?'تتابعه':(source==='shared'?'تمت مراجعة بيانات الدليل':'غير موثق'))+'</span></div></button>';
       }
       function renderDirectory(resetPage){
         if(resetPage) pageSize = 30;
@@ -357,6 +360,8 @@
         pendingLocationName = name;
         pendingNewStoreDraft = draft || null;
         pendingLatLng = null;
+        $('#locationNeighborhood').value = '';
+        $('#publishLocationRequest').checked = false;
         closeDialog('storeDialog'); closeDialog('newStoreDialog');
         $('#mapSelectBar').classList.add('visible');
         $('#mapSelectName').textContent = draft ? 'حدد موقع المتجر الجديد: '+name : 'حدد موقع: '+name;
@@ -427,14 +432,14 @@
         if(!map || !markerLayer) return;
         markerLayer.clearLayers();
         const all=[];
-        localStores.forEach(function(s){if(Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))all.push({name:s.name,lat:Number(s.lat),lng:Number(s.lng)});});
+        localStores.forEach(function(s){if(Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng)))all.push({name:s.name,lat:Number(s.lat),lng:Number(s.lng),shared:!!s.shared});});
         Object.keys(locationOverrides).forEach(function(k){
           const v=locationOverrides[k];
           if(v && Number.isFinite(Number(v.lat)) && Number.isFinite(Number(v.lng)) && !all.some(function(x){return keyOf(x.name)===k;}))all.push({name:v.name,lat:Number(v.lat),lng:Number(v.lng)});
         });
         all.forEach(function(s){
           const marker=L.marker([s.lat,s.lng]).addTo(markerLayer);
-          marker.bindPopup('<strong>'+escapeHTML(s.name)+'</strong><br><span style="font-size:11px">موقع محلي غير موثق</span>');
+          marker.bindPopup('<strong>'+escapeHTML(s.name)+'</strong><br><span style="font-size:11px">'+(s.shared?'موقع منشأة منشور بعد المراجعة':'موقع محلي غير موثق')+'</span>');
           marker.on('click',function(){setTimeout(function(){openStore(s.name);},100);});
         });
       }
@@ -447,7 +452,7 @@
         $('#mapListCaption').textContent=q?('نتائج اسمية: '+items.length.toLocaleString('ar')+' معروض كحد أقصى 35.'):'المواقع المحددة محليًا أولًا، ثم عينة قصيرة من الأسماء.';
         $('#mapResults').innerHTML=items.length?items.map(function(e){
           const loc=getLocation(e.name);
-          return '<div class="map-list-item"><div class="name">'+escapeHTML(e.name)+'<div class="store-sub">'+(loc?'لديه موقع محلي':'بلا إحداثيات')+'</div></div><button class="button button-outline button-small" data-action="choose-location" data-name="'+escapeHTML(e.name)+'">تحديد الموقع</button></div>';
+          return '<div class="map-list-item"><div class="name">'+escapeHTML(e.name)+'<div class="store-sub">'+(loc?(loc.shared?'موقع منشور بعد المراجعة':'موقع محلي على هذا الجهاز'):'بلا إحداثيات')+'</div></div><button class="button button-outline button-small" data-action="choose-location" data-name="'+escapeHTML(e.name)+'">تحديد الموقع</button></div>';
         }).join(''):'<div class="empty-state">لا توجد أسماء مطابقة.</div>';
       }
       async function loadSourceNames(){
@@ -521,7 +526,9 @@
       function updateLoadedState(){
         const total=sourceNames.length+localStores.length;
         $('#loadedCount').textContent=sourceNames.length.toLocaleString('ar')+' اسم مستورد';
-        $('#loadState').textContent=localStores.length.toLocaleString('ar')+' إضافة محلية على هذا الجهاز. لا تتضمن السجلات المستوردة مواقع أو أرقام هواتف.';
+        const sharedCount=localStores.filter(function(s){return !!s.shared;}).length;
+        const localCount=localStores.filter(function(s){return !s.shared;}).length;
+        $('#loadState').textContent=localCount.toLocaleString('ar')+' إضافة محلية؛ '+sharedCount.toLocaleString('ar')+' منشأة مشتركة بعد المراجعة. الأسماء المستوردة بلا مواقع أو هواتف.';
         $('#loadProgressFill').style.width='100%';
         $('#loadProgress').classList.add('hidden');
       }
