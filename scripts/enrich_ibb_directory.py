@@ -114,67 +114,68 @@ def overpass_query() -> str:
     south, west, north, east = BBOX
     box = f"{south},{west},{north},{east}"
     parts = [f'nwr["name"]["{key}"]({box});' for key in sorted(BUSINESS_KEYS)]
-    return "[out:json][timeout:180];(" + "".join(parts) + ");out center tags;"
+    return "[out:json][timeout:90];(" + "".join(parts) + ");out center tags;"
 
 def fetch_osm() -> list[dict[str, Any]]:
+    """Try both public Overpass endpoints once; never stall the rest of the export."""
     query = overpass_query()
     endpoints = [
-        "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass-api.de/api/interpreter",
     ]
     last_error = None
     for endpoint in endpoints:
-        for attempt in range(3):
-            try:
-                response = requests.post(
-                    endpoint, data={"data": query},
-                    headers={"User-Agent": UA}, timeout=(30, 240)
+        try:
+            print(f"Querying OSM endpoint: {endpoint}")
+            response = requests.post(
+                endpoint, data={"data": query},
+                headers={"User-Agent": UA}, timeout=(15, 105)
+            )
+            response.raise_for_status()
+            payload = response.json()
+            rows = []
+            for item in payload.get("elements", []):
+                tags = item.get("tags") or {}
+                if not any(tags.get(k) for k in BUSINESS_KEYS):
+                    continue
+                name = tags.get("name:ar") or tags.get("name")
+                if not name:
+                    continue
+                if item.get("type") == "node":
+                    lat, lon = item.get("lat"), item.get("lon")
+                else:
+                    center = item.get("center") or {}
+                    lat, lon = center.get("lat"), center.get("lon")
+                if lat is None or lon is None:
+                    continue
+                category_key = next((k for k in BUSINESS_KEYS if tags.get(k)), "")
+                address = tags.get("addr:full") or " ".join(
+                    x for x in [tags.get("addr:street"), tags.get("addr:housenumber"),
+                                tags.get("addr:suburb"), tags.get("addr:city")] if x
                 )
-                response.raise_for_status()
-                payload = response.json()
-                rows = []
-                for item in payload.get("elements", []):
-                    tags = item.get("tags") or {}
-                    if not any(tags.get(k) for k in BUSINESS_KEYS):
-                        continue
-                    name = tags.get("name:ar") or tags.get("name")
-                    if not name:
-                        continue
-                    if item.get("type") == "node":
-                        lat, lon = item.get("lat"), item.get("lon")
-                    else:
-                        center = item.get("center") or {}
-                        lat, lon = center.get("lat"), center.get("lon")
-                    if lat is None or lon is None:
-                        continue
-                    category_key = next((k for k in BUSINESS_KEYS if tags.get(k)), "")
-                    address = tags.get("addr:full") or " ".join(
-                        x for x in [tags.get("addr:street"), tags.get("addr:housenumber"),
-                                    tags.get("addr:suburb"), tags.get("addr:city")] if x
-                    )
-                    rows.append({
-                        "record_id": f"osm-{item.get('type')}-{item.get('id')}",
-                        "record_type": "osm_business_feature",
-                        "name": name,
-                        "category": f"{category_key}={tags.get(category_key, '')}",
-                        "district": tags.get("addr:suburb") or tags.get("addr:district", ""),
-                        "address": address,
-                        "phone": tags.get("contact:phone") or tags.get("phone") or tags.get("contact:mobile", ""),
-                        "website": tags.get("contact:website") or tags.get("website", ""),
-                        "opening_hours": tags.get("opening_hours", ""),
-                        "latitude": lat,
-                        "longitude": lon,
-                        "source_name": "OpenStreetMap",
-                        "source_url": f"https://www.openstreetmap.org/{item.get('type')}/{item.get('id')}",
-                        "source_status": "Mapped feature; current operation not established",
-                        "verification_status": "Unverified OSM contribution",
-                        "notes": "Coordinates are the OSM node or way/relation center; search bbox is approximate"
-                    })
-                return rows
-            except Exception as exc:
-                last_error = exc
-                time.sleep(2 ** attempt)
-    raise RuntimeError(f"All Overpass endpoints failed: {last_error}")
+                rows.append({
+                    "record_id": f"osm-{item.get('type')}-{item.get('id')}",
+                    "record_type": "osm_business_feature",
+                    "name": name,
+                    "category": f"{category_key}={tags.get(category_key, '')}",
+                    "district": tags.get("addr:suburb") or tags.get("addr:district", ""),
+                    "address": address,
+                    "phone": tags.get("contact:phone") or tags.get("phone") or tags.get("contact:mobile", ""),
+                    "website": tags.get("contact:website") or tags.get("website", ""),
+                    "opening_hours": tags.get("opening_hours", ""),
+                    "latitude": lat,
+                    "longitude": lon,
+                    "source_name": "OpenStreetMap",
+                    "source_url": f"https://www.openstreetmap.org/{item.get('type')}/{item.get('id')}",
+                    "source_status": "Mapped feature; current operation not established",
+                    "verification_status": "Unverified OSM contribution",
+                    "notes": "Coordinates are the OSM node or way/relation center; search bbox is approximate"
+                })
+            return rows
+        except Exception as exc:
+            last_error = exc
+            print(f"OSM endpoint failed; trying fallback if available: {exc}")
+    raise RuntimeError(f"Both Overpass endpoints failed: {last_error}")
 
 def normalize_name(value: str) -> str:
     value = unicodedata.normalize("NFKC", value or "").lower()
