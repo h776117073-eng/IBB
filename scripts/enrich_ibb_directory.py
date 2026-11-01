@@ -34,7 +34,7 @@ FIELDNAMES = [
     "record_id", "record_type", "name", "category", "district", "address", "phone",
     "website", "opening_hours", "rating", "review_count", "plus_code", "latitude",
     "longitude", "source_name", "source_url", "source_status",
-    "verification_status", "notes"
+    "verification_status", "notes", "google_maps_url", "social_url", "location_confidence", "coordinate_method"
 ]
 
 def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str] | None = None) -> None:
@@ -220,6 +220,144 @@ def build_match_candidates(names: list[dict[str, Any]], osm_rows: list[dict[str,
             })
     return out
 
+def normalize_digits(value: str) -> str:
+    return str(value).translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"))
+
+def fetch_city_directory() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Parse source-visible cards on the Ibb city page; no coordinates are invented."""
+    from bs4 import BeautifulSoup
+
+    url = "https://xn--mgb2ddes.com/directory/city/%D8%A5%D8%A8"
+    response = requests.get(
+        url,
+        headers={"User-Agent": UA, "Accept-Language": "ar,en;q=0.8"},
+        timeout=60,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = soup.select("article.gp-biz")
+    page_text = soup.get_text(" ", strip=True)
+    count_match = re.search(r"([\d٠-٩۰-۹]+)\s*(?:من|/)\s*([\d٠-٩۰-۹]+)", page_text)
+    visible_claim = int(normalize_digits(count_match.group(1))) if count_match else len(cards)
+    total_claim = int(normalize_digits(count_match.group(2))) if count_match else 0
+
+    rows: list[dict[str, Any]] = []
+    excluded_nonlocal = 0
+    for i, card in enumerate(cards, start=1):
+        heading = card.select_one("h4")
+        name = heading.get_text(" ", strip=True) if heading else ""
+        if not name:
+            continue
+        where = card.select_one(".gp-biz-w")
+        location_line = where.get_text(" ", strip=True) if where else ""
+        locality, _, address = location_line.partition("·")
+        locality = locality.strip()
+        address = address.strip()
+        category_el = card.select_one(".gp-biz-cat")
+        category = category_el.get_text(" ", strip=True) if category_el else ""
+
+        # The page is city-filtered, but some cards contain an unrelated overseas
+        # address. Exclude clear out-of-country indicators; keep ambiguous Yemen
+        # localities flagged for review rather than fabricating certainty.
+        phone_link = card.select_one('a[href^="tel:"]')
+        phone = phone_link.get_text(" ", strip=True) if phone_link else ""
+        phone_href = phone_link.get("href", "").replace("tel:", "").strip() if phone_link else ""
+        addr_norm = address.casefold()
+        foreign_address = bool(re.search(
+            r"\b(?:USA|United States|Lynnwood|Washington,\s*[A-Z]{2}\s+\d{5}|"
+            r"United Kingdom|Saudi Arabia|UAE|Qatar)\b|Sana['’]?a|صنعاء",
+            address, re.I
+        ))
+        foreign_phone = bool(phone_href and not phone_href.startswith("+967") and phone_href.startswith("+"))
+        if foreign_address or foreign_phone:
+            excluded_nonlocal += 1
+            continue
+
+        maps_link = card.select_one('a[href*="maps.google.com"]')
+        maps_url = maps_link.get("href", "") if maps_link else ""
+        external_links = [
+            a.get("href", "") for a in card.select("a[href^='http']")
+            if a.get("href") and "maps.google.com" not in a.get("href", "")
+        ]
+        social_url = next(
+            (u for u in external_links if re.search(r"facebook|instagram|tiktok|x\.com|twitter|whatsapp", u, re.I)),
+            ""
+        )
+        website = next((u for u in external_links if u != social_url), "")
+        rating_el = card.select_one(".gp-biz-rt")
+        rating_values = []
+        if rating_el:
+            for span in rating_el.select("span"):
+                if "gp-stars" in span.get("class", []) or "gp-dot" in span.get("class", []):
+                    continue
+                text_value = normalize_digits(span.get_text(" ", strip=True)).replace("٫", ".")
+                if text_value:
+                    rating_values.append(text_value)
+        rating = rating_values[0] if rating_values else ""
+        review_count = rating_values[1] if len(rating_values) > 1 else ""
+
+        codes = PLUS_RE.findall(location_line)
+        plus_code = codes[0].upper() if codes else ""
+        lat = lon = ""
+        coordinate_method = ""
+        if plus_code:
+            try:
+                if len(plus_code.split("+", 1)[0]) >= 8:
+                    decoded = olc.decode(plus_code)
+                else:
+                    decoded = olc.decode(olc.recoverNearest(plus_code, IBB_LAT, IBB_LON))
+                    coordinate_method = "Short Plus Code recovered near approximate Ibb center; approximate only"
+                lat, lon = decoded.latitudeCenter, decoded.longitudeCenter
+                if not coordinate_method:
+                    coordinate_method = "Full Plus Code decoded from source"
+            except Exception:
+                lat = lon = ""
+                coordinate_method = "Plus Code present but could not be decoded"
+
+        locality_is_ibb = locality.strip() in {"إب", "اب", "Ibb", "IBB", "Ibb, Yemen"}
+        location_confidence = (
+            "City label matches Ibb; address still requires review"
+            if locality_is_ibb else "City page record; displayed locality differs; manual review required"
+        )
+        rows.append({
+            "record_id": f"ibb-webdir-{len(rows)+1:04d}",
+            "record_type": "city_directory_listing",
+            "name": name,
+            "category": category,
+            "address": address,
+            "phone": phone_href or phone,
+            "website": website,
+            "rating": rating,
+            "review_count": review_count,
+            "plus_code": plus_code,
+            "latitude": lat,
+            "longitude": lon,
+            "source_name": "اليمن.com — دليل أعمال إب",
+            "source_url": url,
+            "source_status": "Visible listing on Ibb city directory page; listing count and fields attributed to the directory",
+            "verification_status": "Public directory lead; not independently field-verified",
+            "notes": "Card-level Google Maps link and source fields retained; verify business still operates and details are current. " + coordinate_method,
+            "google_maps_url": maps_url,
+            "social_url": social_url,
+            "location_confidence": location_confidence,
+            "coordinate_method": coordinate_method,
+        })
+    stats = {
+        "city_directory_page_url": url,
+        "city_directory_cards_parsed": len(cards),
+        "city_directory_total_claimed_by_source": total_claim,
+        "city_directory_visible_claimed_by_source": visible_claim,
+        "city_directory_record_count": len(rows),
+        "city_directory_excluded_clear_nonlocal": excluded_nonlocal,
+        "city_directory_category_counts_claimed": {
+            "restaurants_and_cafes": 102, "retail": 92, "healthcare": 94,
+            "services": 37, "entertainment_and_landmarks": 40, "education": 35,
+            "finance_and_business": 66, "hotels": 5
+        },
+        "city_directory_note": "The source page exposes 240 of 471 claimed listings; its city/category metadata is not an official census. Cards with obvious foreign addresses/phones are excluded. Remaining rows require manual checks."
+    }
+    return rows, stats
+
 def extract_scrapegraph() -> list[dict[str, Any]]:
     api_key = os.getenv("SCRAPEGRAPH_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -231,12 +369,15 @@ def extract_scrapegraph() -> list[dict[str, Any]]:
         print(f"ScrapeGraphAI import failed: {exc}")
         return []
     sources = [
-        "https://xn--mgb2ddes.com/directory/retail",
-        "https://xn--mgb2ddes.com/directory/services",
+        "https://xn--mgb2ddes.com/directory/city/%D8%A5%D8%A8",
         "https://xn--mgb2ddes.com/directory/restaurant",
+        "https://xn--mgb2ddes.com/directory/retail",
         "https://xn--mgb2ddes.com/directory/healthcare",
+        "https://xn--mgb2ddes.com/directory/services",
+        "https://xn--mgb2ddes.com/directory/entertainment",
+        "https://xn--mgb2ddes.com/directory/education",
         "https://xn--mgb2ddes.com/directory/finance",
-        "https://bookin4me.com/hotel?location_id=4",
+        "https://xn--mgb2ddes.com/directory/hotel",
     ]
     prompt = (
         "Extract only establishment records visibly present in these source pages and explicitly located "
@@ -329,14 +470,22 @@ def main() -> int:
         print(f"OSM query failed; continuing with sourced seed only: {exc}")
         osm = []
     print(f"OSM named business features: {len(osm)}")
+    city_rows, city_stats = ([], {})
+    try:
+        print("Parsing the city-filtered Ibb public business directory...")
+        city_rows, city_stats = fetch_city_directory()
+        print(f"City directory visible records after conservative filtering: {len(city_rows)}")
+    except Exception as exc:
+        print(f"City directory parse failed; continuing with other sources: {exc}")
     scraped = extract_scrapegraph()
     print(f"ScrapeGraphAI extracted candidates: {len(scraped)}")
     candidates = build_match_candidates(names, osm)
-    combined = names + seed + osm + scraped
+    combined = names + seed + osm + city_rows + scraped
 
     write_csv(OUT / "ibb_source_names_11060.csv", names)
     write_csv(OUT / "ibb_public_directory_seed.csv", seed)
     write_csv(OUT / "ibb_osm_businesses.csv", osm)
+    write_csv(OUT / "ibb_city_directory_visible.csv", city_rows)
     write_csv(OUT / "ibb_scrapegraph_candidates.csv", scraped)
     write_csv(OUT / "ibb_all_sources_full.csv", combined)
     write_csv(
@@ -351,6 +500,7 @@ def main() -> int:
         "public_directory_seed_count": len(seed),
         "seed_with_plus_code_coordinates": sum(bool(x["latitude"]) for x in seed),
         "osm_business_feature_count": len(osm),
+        **city_stats,
         "scrapegraph_candidate_count": len(scraped),
         "name_match_candidate_count": len(candidates),
         "combined_row_count": len(combined),
@@ -370,6 +520,7 @@ def main() -> int:
         "- ibb_public_directory_seed.csv: 270 records from a public-directory workbook; source status is retained. "
         "Short Plus Codes are decoded using an approximate Ibb center, so coordinates must be checked.\n"
         "- ibb_osm_businesses.csv: named business-tagged OpenStreetMap features inside an approximate bounding box.\n"
+        "- ibb_city_directory_visible.csv: cards visible on the city-filtered Yemen.com Ibb page after excluding clear non-local addresses/phones; only 240 of 471 page-claimed listings are rendered.\n"
         "- ibb_scrapegraph_candidates.csv: AI-extracted candidates from public pages, only when an LLM API key is configured.\n"
         "- ibb_name_match_candidates.csv: potential name-to-OSM matches, never auto-merged.\n"
         "- ibb_all_sources_full.csv: row-wise combined export with source and verification fields.\n\n"
