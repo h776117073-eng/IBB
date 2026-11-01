@@ -1,0 +1,82 @@
+name: Enrich Ibb establishment directory
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/ibb-directory-enrichment.yml"
+      - "scripts/enrich_ibb_directory.py"
+      - "scripts/upload_to_drive.py"
+      - "requirements-ibb-enrichment.txt"
+      - "data/seed/ibb-public-directory-270.json.gz.b64"
+      - "data/index.json"
+      - "data/store-names-*.json"
+  workflow_dispatch:
+  schedule:
+    - cron: "15 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ibb-directory-enrichment
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect and validate Ibb public directory records
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SCRAPEGRAPH_API_KEY: \${{ secrets.SCRAPEGRAPH_API_KEY }}
+      OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
+      SCRAPEGRAPH_MODEL: \${{ vars.SCRAPEGRAPH_MODEL || 'openai/gpt-4o-mini' }}
+      GDRIVE_SERVICE_ACCOUNT_JSON: \${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+      GDRIVE_FOLDER_ID: \${{ secrets.GDRIVE_FOLDER_ID }}
+      IBB_BBOX: \${{ vars.IBB_BBOX || '13.93,44.12,14.01,44.23' }}
+    steps:
+      - name: Check out IBB repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-ibb-enrichment.txt
+
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-ibb-enrichment.txt
+
+      - name: Install ScrapeGraphAI and Chromium when an LLM key exists
+        if: \${{ env.SCRAPEGRAPH_API_KEY != '' || env.OPENAI_API_KEY != '' }}
+        run: |
+          python -m pip install "scrapegraphai==2.3.1"
+          python -m playwright install --with-deps chromium
+
+      - name: Collect source names, public directory, OSM and AI candidates
+        run: python scripts/enrich_ibb_directory.py
+
+      - name: Upload result files as GitHub artifact
+        if: \${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibb-directory-export
+          path: out/*
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload ZIP to Google Drive when Drive secrets are configured
+        if: \${{ env.GDRIVE_SERVICE_ACCOUNT_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
+        run: |
+          python -m pip install google-api-python-client google-auth
+          python scripts/upload_to_drive.py out/ibb_directory_export.zip
+
+      - name: Report missing Google Drive configuration
+        if: \${{ env.GDRIVE_SERVICE_ACCOUNT_JSON == '' || env.GDRIVE_FOLDER_ID == '' }}
+        run: |
+          echo "Google Drive upload skipped: configure GDRIVE_SERVICE_ACCOUNT_JSON and GDRIVE_FOLDER_ID as repository Actions secrets."
+          echo "The export remains available as the ibb-directory-export workflow artifact."
