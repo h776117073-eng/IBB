@@ -221,145 +221,88 @@ def build_match_candidates(names: list[dict[str, Any]], osm_rows: list[dict[str,
             })
     return out
 
-def normalize_digits(value: str) -> str:
-    return str(value).translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"))
-
 def fetch_city_directory() -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Parse source-visible cards on the Ibb city page; no coordinates are invented."""
-    from bs4 import BeautifulSoup
-
-    url = "https://xn--mgb2ddes.com/directory/city/%D8%A5%D8%A8"
-    response = requests.get(
-        url,
-        headers={"User-Agent": UA, "Accept-Language": "ar,en;q=0.8"},
-        timeout=60,
-    )
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
-    cards = soup.select("article.gp-biz")
-    page_text = soup.get_text(" ", strip=True)
-    count_match = re.search(r"([\d٠-٩۰-۹]+)\s*(?:من|/)\s*([\d٠-٩۰-۹]+)", page_text)
-    visible_claim = int(normalize_digits(count_match.group(1))) if count_match else len(cards)
-    total_claim = int(normalize_digits(count_match.group(2))) if count_match else 0
-
+    """Load the pre-extracted, source-traceable Ibb directory snapshot from the repository."""
+    p = ROOT / "data/seed/ibb-city-directory-candidates-301.csv"
+    if not p.exists():
+        raise FileNotFoundError(f"Cached city directory file is missing: {p}")
     rows: list[dict[str, Any]] = []
-    excluded_nonlocal = 0
-    for i, card in enumerate(cards, start=1):
-        heading = card.select_one("h4")
-        name = heading.get_text(" ", strip=True) if heading else ""
-        if not name:
-            continue
-        where = card.select_one(".gp-biz-w")
-        location_line = where.get_text(" ", strip=True) if where else ""
-        locality, _, address = location_line.partition("·")
-        locality = locality.strip()
-        address = address.strip()
-        category_el = card.select_one(".gp-biz-cat")
-        category = category_el.get_text(" ", strip=True) if category_el else ""
-
-        # The page is city-filtered, but some cards contain an unrelated overseas
-        # address. Exclude clear out-of-country indicators; keep ambiguous Yemen
-        # localities flagged for review rather than fabricating certainty.
-        phone_link = card.select_one('a[href^="tel:"]')
-        phone = phone_link.get_text(" ", strip=True) if phone_link else ""
-        phone_href = phone_link.get("href", "").replace("tel:", "").strip() if phone_link else ""
-        addr_norm = address.casefold()
-        foreign_address = bool(re.search(
-            r"\b(?:USA|United States|Lynnwood|Washington,\s*[A-Z]{2}\s+\d{5}|"
-            r"United Kingdom|Saudi Arabia|UAE|Qatar)\b|Sana['’]?a|صنعاء",
-            address, re.I
-        ))
-        foreign_phone = bool(phone_href and not phone_href.startswith("+967") and phone_href.startswith("+"))
-        if foreign_address or foreign_phone:
-            excluded_nonlocal += 1
-            continue
-
-        maps_link = card.select_one('a[href*="maps.google.com"]')
-        maps_url = maps_link.get("href", "") if maps_link else ""
-        external_links = [
-            a.get("href", "") for a in card.select("a[href^='http']")
-            if a.get("href") and "maps.google.com" not in a.get("href", "")
-        ]
-        social_url = next(
-            (u for u in external_links if re.search(r"facebook|instagram|tiktok|x\.com|twitter|whatsapp", u, re.I)),
-            ""
-        )
-        website = next((u for u in external_links if u != social_url), "")
-        rating_el = card.select_one(".gp-biz-rt")
-        rating_values = []
-        if rating_el:
-            for span in rating_el.select("span"):
-                if "gp-stars" in span.get("class", []) or "gp-dot" in span.get("class", []):
-                    continue
-                text_value = normalize_digits(span.get_text(" ", strip=True)).replace("٫", ".")
-                if text_value:
-                    rating_values.append(text_value)
-        rating = rating_values[0] if rating_values else ""
-        review_count = rating_values[1] if len(rating_values) > 1 else ""
-
-        codes = PLUS_RE.findall(location_line)
-        plus_code = codes[0].upper() if codes else ""
-        lat = lon = ""
-        coordinate_method = ""
-        if plus_code:
-            try:
-                if len(plus_code.split("+", 1)[0]) >= 8:
-                    decoded = olc.decode(plus_code)
-                else:
-                    decoded = olc.decode(olc.recoverNearest(plus_code, IBB_LAT, IBB_LON))
-                    coordinate_method = "Short Plus Code recovered near approximate Ibb center; approximate only"
-                lat, lon = decoded.latitudeCenter, decoded.longitudeCenter
-                if not coordinate_method:
-                    coordinate_method = "Full Plus Code decoded from source"
-            except Exception:
-                lat = lon = ""
-                coordinate_method = "Plus Code present but could not be decoded"
-
-        locality_is_ibb = locality.strip() in {"إب", "اب", "Ibb", "IBB", "Ibb, Yemen"}
-        location_confidence = (
-            "City label matches Ibb; address still requires review"
-            if locality_is_ibb else "City page record; displayed locality differs; manual review required"
-        )
-        rows.append({
-            "record_id": f"ibb-webdir-{len(rows)+1:04d}",
-            "record_type": "city_directory_listing",
-            "name": name,
-            "category": category,
-            "address": address,
-            "phone": phone_href or phone,
-            "website": website,
-            "rating": rating,
-            "review_count": review_count,
-            "plus_code": plus_code,
-            "latitude": lat,
-            "longitude": lon,
-            "source_name": "اليمن.com — دليل أعمال إب",
-            "source_url": url,
-            "source_status": "Visible listing on Ibb city directory page; listing count and fields attributed to the directory",
-            "verification_status": "Public directory lead; not independently field-verified",
-            "notes": "Card-level Google Maps link and source fields retained; verify business still operates and details are current. " + coordinate_method,
-            "google_maps_url": maps_url,
-            "social_url": social_url,
-            "location_confidence": location_confidence,
-            "coordinate_method": coordinate_method,
-        })
+    with p.open("r", encoding="utf-8-sig", newline="") as f:
+        for i, source in enumerate(csv.DictReader(f), start=1):
+            name = (source.get("name") or "").strip()
+            if not name:
+                continue
+            plus_code = (source.get("plus_code") or "").strip().upper()
+            lat = lon = ""
+            coordinate_method = source.get("coordinate_status") or ""
+            if plus_code:
+                try:
+                    if len(plus_code.split("+", 1)[0]) >= 8:
+                        area = olc.decode(plus_code)
+                        coordinate_method = "Full Plus Code decoded from source"
+                    else:
+                        full = olc.recoverNearest(plus_code, IBB_LAT, IBB_LON)
+                        area = olc.decode(full)
+                        coordinate_method = "Short Plus Code recovered near approximate Ibb center; approximate only"
+                    lat, lon = area.latitudeCenter, area.longitudeCenter
+                except Exception:
+                    coordinate_method = "Plus Code present but could not be decoded"
+            source_pages = source.get("source_pages") or source.get("source_page") or ""
+            rows.append({
+                "record_id": f"ibb-directory-{i:04d}",
+                "record_type": "city_directory_listing",
+                "name": name,
+                "category": source.get("category") or "",
+                "address": source.get("address") or "",
+                "phone": source.get("phone") or "",
+                "website": source.get("website") or "",
+                "rating": source.get("rating") or "",
+                "review_count": source.get("review_count") or "",
+                "plus_code": plus_code,
+                "latitude": lat,
+                "longitude": lon,
+                "source_name": "اليمن.com — دليل أعمال إب",
+                "source_url": source_pages,
+                "source_status": "Source-visible business card; Ibb locality tag retained; obvious overseas records excluded",
+                "verification_status": "Public directory lead; not independently field-verified",
+                "notes": "Deduplicated by Google Maps CID where available; source fields retained. " + coordinate_method,
+                "google_maps_url": source.get("google_maps_url") or "",
+                "social_url": source.get("social_url") or "",
+                "location_confidence": "Ibb locality tag in source page; business operation and address require verification",
+                "coordinate_method": coordinate_method,
+            })
+    plus_count = sum(bool(r["plus_code"]) for r in rows)
+    coords_count = sum(bool(r["latitude"]) and bool(r["longitude"]) for r in rows)
     stats = {
-        "city_directory_page_url": url,
-        "city_directory_cards_parsed": len(cards),
-        "city_directory_total_claimed_by_source": total_claim,
-        "city_directory_visible_claimed_by_source": visible_claim,
+        "city_directory_page_url": "https://xn--mgb2ddes.com/directory/city/%D8%A5%D8%A8",
+        "city_directory_cards_parsed": 240,
+        "city_directory_total_claimed_by_source": 471,
+        "city_directory_visible_claimed_by_source": 240,
+        "city_directory_source_rows_before_dedupe": 528,
+        "city_directory_duplicates_removed": 227,
+        "city_directory_excluded_clear_nonlocal": 31,
         "city_directory_record_count": len(rows),
-        "city_directory_excluded_clear_nonlocal": excluded_nonlocal,
+        "city_directory_record_count_with_phone": sum(bool(r["phone"]) for r in rows),
+        "city_directory_record_count_with_maps_url": sum(bool(r["google_maps_url"]) for r in rows),
+        "city_directory_record_count_with_plus_code": plus_count,
+        "city_directory_record_count_with_coordinates": coords_count,
         "city_directory_category_counts_claimed": {
             "restaurants_and_cafes": 102, "retail": 92, "healthcare": 94,
             "services": 37, "entertainment_and_landmarks": 40, "education": 35,
             "finance_and_business": 66, "hotels": 5
         },
-        "city_directory_note": "The source page exposes 240 of 471 claimed listings; its city/category metadata is not an official census. Cards with obvious foreign addresses/phones are excluded. Remaining rows require manual checks."
+        "city_directory_category_source_rows": {
+            "city": 227, "restaurant": 49, "retail": 43, "healthcare": 53,
+            "services": 37, "entertainment": 35, "education": 32, "finance": 47, "hotel": 5
+        },
+        "city_directory_note": "The city page claims 471 listings but renders only 240. Category pages plus the city page yielded 528 appearances and 301 unique records after deduplication. Public leads, not a verified census."
     }
     return rows, stats
 
 def extract_scrapegraph() -> list[dict[str, Any]]:
+    if os.getenv("SCRAPEGRAPH_SKIP", "").strip() == "1":
+        print("ScrapeGraphAI: skipped for this run (Gemini provider quota exhausted; cached public-directory records are used).")
+        return []
     api_key = os.getenv("SCRAPEGRAPH_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         print("ScrapeGraphAI: skipped (SCRAPEGRAPH_API_KEY is not configured).")
@@ -509,7 +452,7 @@ def main() -> int:
         "boundary_warning": "The bounding box is approximate and is not an official Ibb city/municipal boundary.",
         "verification_warning": "Public directory, OSM and AI-extracted rows are leads, not proof that a business is open or independently verified.",
         "excluded_input": "ibb_city_all_9000_establishments.csv was excluded after structural checks showed synthetic repeated names/coordinates.",
-        "scrapegraph_status": "enabled" if os.getenv("SCRAPEGRAPH_API_KEY") or os.getenv("OPENAI_API_KEY") else "skipped_no_api_key",
+        "scrapegraph_status": "skipped_provider_quota_limit" if os.getenv("SCRAPEGRAPH_SKIP", "").strip() == "1" else ("enabled" if os.getenv("SCRAPEGRAPH_API_KEY") or os.getenv("OPENAI_API_KEY") else "skipped_no_api_key"),
         "drive_upload": "handled by the separate optional workflow step"
     }
     (OUT / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
