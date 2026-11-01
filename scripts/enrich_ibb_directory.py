@@ -231,10 +231,12 @@ def extract_scrapegraph() -> list[dict[str, Any]]:
         print(f"ScrapeGraphAI import failed: {exc}")
         return []
     sources = [
-        "https://yellowpages-ar.cybo.com/YE/%D8%A5%D8%A8/%D9%85%D8%AD%D9%84%D8%A7%D8%AA-%D8%A7%D9%84%D8%AC%D9%88%D8%A7%D9%84%D8%A7%D8%AA/",
-        "https://yellowpages-ar.cybo.com/YE/%D8%A5%D8%A8/%D8%A7%D9%84%D8%B7%D8%B9%D8%A7%D9%85",
-        "https://yellowpages-ar.cybo.com/YE/%D8%A5%D8%A8/%D8%A7%D9%84%D9%85%D8%AA%D8%A7%D8%AC%D8%B1/",
-        "https://yellowpages-ar.cybo.com/YE/%D8%A5%D8%A8/%D9%85%D9%84%D8%A7%D8%A8%D8%B3-%D9%84%D9%84%D9%85%D8%B1%D8%A3%D8%A9/",
+        "https://xn--mgb2ddes.com/directory/retail",
+        "https://xn--mgb2ddes.com/directory/services",
+        "https://xn--mgb2ddes.com/directory/restaurant",
+        "https://xn--mgb2ddes.com/directory/healthcare",
+        "https://xn--mgb2ddes.com/directory/finance",
+        "https://bookin4me.com/hotel?location_id=4",
     ]
     prompt = (
         "Extract only establishment records visibly present in these source pages and explicitly located "
@@ -305,11 +307,11 @@ def extract_scrapegraph() -> list[dict[str, Any]]:
             "plus_code": plus_code,
             "latitude": lat,
             "longitude": lon,
-            "source_name": "Cybo via ScrapeGraphAI",
+            "source_name": "Public web directory via ScrapeGraphAI",
             "source_url": str(row.get("detail_url") or " | ".join(sources)),
             "source_status": "Extracted from visible public page; status not independently verified",
             "verification_status": "Requires source and field verification",
-            "notes": "LLM extraction; confirm detail_url and every important field before production use"
+            "notes": "LLM extraction from public directory pages; confirm detail_url and every important field before production use"
         })
     return clean
 
