@@ -464,7 +464,7 @@ def main() -> int:
         "- ibb_public_directory_seed.csv: 270 records from a public-directory workbook; source status is retained. "
         "Short Plus Codes are decoded using an approximate Ibb center, so coordinates must be checked.\n"
         "- ibb_osm_businesses.csv: named business-tagged OpenStreetMap features inside an approximate bounding box.\n"
-        "- ibb_city_directory_visible.csv: cards visible on the city-filtered Yemen.com Ibb page after excluding clear non-local addresses/phones; only 240 of 471 page-claimed listings are rendered.\n"
+        "- ibb_city_directory_visible.csv: 301 unique Ibb directory leads merged from the city page and eight category pages after deduplication; the city page itself renders only 240 of 471 source-claimed listings.\n"
         "- ibb_scrapegraph_candidates.csv: AI-extracted candidates from public pages, only when an LLM API key is configured.\n"
         "- ibb_name_match_candidates.csv: potential name-to-OSM matches, never auto-merged.\n"
         "- ibb_all_sources_full.csv: row-wise combined export with source and verification fields.\n\n"
