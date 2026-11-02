@@ -1,0 +1,31 @@
+name: Validate PDR customer web foundation
+on:
+  pull_request:
+    paths:
+      - "market/**"
+      - "docs/PDR_*.md"
+      - "scripts/validate_market.mjs"
+      - ".github/workflows/market-validate.yml"
+  push:
+    branches: ["pdr-customer-foundation"]
+    paths:
+      - "market/**"
+      - "docs/PDR_*.md"
+      - "scripts/validate_market.mjs"
+      - ".github/workflows/market-validate.yml"
+permissions:
+  contents: read
+jobs:
+  validate-market:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: node --check market/app.js
+      - name: Check UI contracts
+        run: node scripts/validate_market.mjs
