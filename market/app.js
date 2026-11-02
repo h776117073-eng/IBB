@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var API="https://ibb-market-edge.aicreativestudio.workers.dev";
+var API="https://ibb-market-api.aicreativestudio.workers.dev";
 var state={stores:[],products:[],query:"",category:"",selectedStore:"",cart:[]};
 var $=function(id){return document.getElementById(id);};
 var storeGrid=$("storeGrid"),productGrid=$("productGrid"),productCount=$("productCount");
