@@ -10,11 +10,13 @@ function toast(message){var el=$("toast");el.textContent=message;el.classList.ad
 function empty(title,desc,icon){return '<div class="empty-state"><span>'+icon+'</span><strong>'+esc(title)+'</strong><p>'+esc(desc)+'</p></div>';}
 function api(path){return fetch(API+path,{method:"GET",headers:{Accept:"application/json"},mode:"cors",cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});}
 function renderStores(){
- if(!state.stores.length){storeGrid.innerHTML=empty("لا توجد متاجر منشورة بعد","عند اعتماد أول متجر ستظهر بياناته هنا. أسماء الدليل القديم لا تُعامل تلقائياً كمتاجر عاملة أو ذات مخزون.","⌂");return;}
- storeGrid.innerHTML=state.stores.map(function(s){
+ var query=state.query.trim().toLocaleLowerCase("ar");
+ var rows=state.stores.filter(function(s){return !query||[s.name,s.category,s.neighborhood].some(function(v){return String(v||"").toLocaleLowerCase("ar").indexOf(query)>=0;});});
+ if(!rows.length){storeGrid.innerHTML=empty(state.query?"لا توجد متاجر مطابقة":"لا توجد متاجر منشورة بعد",state.query?"جرّب كلمة أخرى أو امسح البحث.":"عند اعتماد أول متجر ستظهر بياناته هنا. أسماء الدليل القديم لا تُعامل تلقائياً كمتاجر عاملة أو ذات مخزون.","⌂");return;}
+ storeGrid.innerHTML=rows.map(function(s){
   var verified=s.owner_verified===true;
   var location=[s.category,s.neighborhood].filter(Boolean).map(esc).join(" · ");
-  return '<article class="store-card"><div class="store-avatar">⌂</div><div class="store-info"><h3>'+esc(s.name)+'</h3><p>'+(location||"مدينة إب")+'</p><span class="verified-chip">✓ '+(verified?"تم التحقق من الملكية":"تمت مراجعة بيانات السجل")+'</span></div><span class="store-arrow" aria-hidden="true">‹</span></article>';
+  return '<article class="store-card" role="button" tabindex="0" data-store="'+esc(s.id)+'" aria-label="افتح متجر '+esc(s.name)+'"><div class="store-avatar">⌂</div><div class="store-info"><h3>'+esc(s.name)+'</h3><p>'+(location||"مدينة إب")+'</p><span class="verified-chip">✓ '+(verified?"تم التحقق من الملكية":"تمت مراجعة بيانات السجل")+'</span></div><span class="store-arrow" aria-hidden="true">‹</span></article>';
  }).join("");
 }
 function productIcon(category){var c=String(category||"");if(/خض|ورق/i.test(c))return "♧";if(/فاك/i.test(c))return "◉";if(/مخب|خبز/i.test(c))return "⌂";if(/منزل/i.test(c))return "⌂";return "▤";}
@@ -32,7 +34,7 @@ function renderProducts(){
  productGrid.innerHTML=rows.map(function(p){
   var image=p.image_url&&/^https:\/\//i.test(p.image_url)?'<img loading="lazy" src="'+esc(p.image_url)+'" alt="" onerror="this.remove()">':'<span class="product-fallback">'+productIcon(p.category)+'</span>';
   var cat=p.category?'<span class="product-category">'+esc(p.category)+'</span>':"";
-  return '<article class="product-card"><div class="product-media">'+image+cat+'</div><div class="product-body"><h3>'+esc(p.name)+'</h3><div class="product-store">'+esc(p.store_name||"متجر محلي")+'</div><div class="product-price-row"><span class="product-price">'+money(p.price,p.currency)+'</span><button class="add-button" type="button" data-add="'+esc(p.id)+'" aria-label="أضف '+esc(p.name)+' إلى السلة التجريبية">+</button></div></div></article>';
+  return '<article class="product-card"><button type="button" class="product-open" data-details="'+esc(p.id)+'" aria-label="تفاصيل '+esc(p.name)+'"><div class="product-media">'+image+cat+'</div><div class="product-body"><h3>'+esc(p.name)+'</h3><div class="product-store">'+esc(p.store_name||"متجر محلي")+'</div></div></button><div class="product-price-row"><span class="product-price">'+money(p.price,p.currency)+'</span><button class="add-button" type="button" data-add="'+esc(p.id)+'" aria-label="أضف '+esc(p.name)+' إلى السلة التجريبية">+</button></div></article>';
  }).join("");
 }
 function renderFilters(){
@@ -79,12 +81,42 @@ function renderCart(){
  $("cartTotal").textContent=known?money(total,"YER"):"لا يمكن حسابه بدقة";
  $("clearCart").disabled=false;
 }
+function openProduct(id){
+ var p=state.products.find(function(x){return String(x.id)===String(id);});if(!p)return;
+ $("detailTitle").textContent="تفاصيل المنتج";
+ var image=p.image_url&&/^https:\/\//i.test(p.image_url)?'<img class="detail-image" src="'+esc(p.image_url)+'" alt="'+esc(p.name)+'">':'<div class="detail-image detail-placeholder">'+productIcon(p.category)+'</div>';
+ $("detailContent").innerHTML='<div class="product-detail">'+image+'<div class="product-detail-copy"><span class="eyebrow">'+esc(p.category||"منتج محلي")+'</span><h3>'+esc(p.name)+'</h3><p>'+esc(p.description||"لم يضف المتجر وصفًا لهذا المنتج.")+'</p><div class="detail-store">المتجر: '+esc(p.store_name||"غير محدد")+'</div><strong class="detail-price">'+money(p.price,p.currency)+'</strong><button class="submit-button" type="button" data-add="'+esc(p.id)+'">أضف إلى السلة التجريبية <span>+</span></button><small>السعر والتوفر يحتاجان تأكيد المتجر قبل أي شراء. هذه المعاينة لا تنشئ طلبًا.</small></div></div>';
+ $("detailDialog").showModal();
+}
+function openStore(id){
+ var store=state.stores.find(function(x){return String(x.id)===String(id);});if(!store)return;
+ $("detailTitle").textContent="ملف المتجر";
+ $("detailContent").innerHTML='<div class="detail-loading"><span class="loader"></span> جارٍ تحميل منتجات المتجر…</div>';
+ $("detailDialog").showModal();
+ api("/api/v1/stores/"+encodeURIComponent(id)+"/products").then(function(data){
+  if(data.store)store=data.store;
+  var products=Array.isArray(data.products)?data.products:[];
+  products.forEach(function(p){if(!state.products.some(function(x){return String(x.id)===String(p.id);}))state.products.push(p);});
+  var verified=store.owner_verified===true;
+  var rows=products.length?products.map(function(p){return '<div class="detail-product"><div><b>'+esc(p.name)+'</b><small>'+esc(p.category||"منتج محلي")+' · '+money(p.price,p.currency)+'</small></div><button type="button" class="detail-add" data-add="'+esc(p.id)+'" aria-label="أضف '+esc(p.name)+'">+</button></div>';}).join(""):empty("لا توجد منتجات منشورة بعد","تظهر المنتجات هنا بعد أن يضيفها المتجر وتعتمدها الإدارة.","▤");
+  $("detailContent").innerHTML='<div class="store-detail"><div class="store-detail-heading"><div class="store-avatar large">⌂</div><div><h3>'+esc(store.name)+'</h3><p>'+esc([store.category,store.neighborhood].filter(Boolean).join(" · ")||"مدينة إب")+'</p><span class="verified-chip">✓ '+(verified?"تم التحقق من الملكية":"تمت مراجعة بيانات السجل")+'</span></div></div><p class="store-description">'+esc(store.description||"لا يوجد وصف إضافي للمتجر.")+'</p><button type="button" class="filter-pill store-filter-action" data-filter-store="'+esc(store.id)+'">عرض منتجات هذا المتجر في القائمة</button><h4>منتجات المتجر</h4><div class="store-detail-products">'+rows+'</div></div>';
+ }).catch(function(){
+  var products=state.products.filter(function(p){return String(p.store_id)===String(id);});
+  $("detailContent").innerHTML='<div class="store-detail"><div class="store-detail-heading"><div class="store-avatar large">⌂</div><div><h3>'+esc(store.name)+'</h3><p>'+esc([store.category,store.neighborhood].filter(Boolean).join(" · ")||"مدينة إب")+'</p></div></div>'+empty("تعذر تحميل كتالوج المتجر","تحقق من الاتصال ثم حاول مجددًا.","⌁")+'</div>';
+ });
+}
 function openCart(){renderCart();$("cartDialog").showModal();}
 $("searchForm").addEventListener("submit",function(e){e.preventDefault();state.query=$("searchInput").value.trim();state.selectedStore="";render();$("products").scrollIntoView({behavior:"smooth"});});
-$("searchInput").addEventListener("input",function(){state.query=this.value.trim();state.selectedStore="";renderProducts();renderFilters();});
+$("searchInput").addEventListener("input",function(){state.query=this.value.trim();state.selectedStore="";renderStores();renderProducts();renderFilters();});
 document.querySelectorAll("[data-query]").forEach(function(b){b.addEventListener("click",function(){state.query=this.dataset.query;$("searchInput").value=state.query;render();$("products").scrollIntoView({behavior:"smooth"});});});
 $("categoryGrid").addEventListener("click",function(e){var b=e.target.closest("[data-category]");if(!b)return;state.category=b.dataset.category||"";syncCategory();renderProducts();renderFilters();});
-$("productGrid").addEventListener("click",function(e){var b=e.target.closest("[data-add]");if(b)addToCart(b.dataset.add);});
+$("productGrid").addEventListener("click",function(e){var add=e.target.closest("[data-add]");if(add){addToCart(add.dataset.add);return;}var details=e.target.closest("[data-details]");if(details)openProduct(details.dataset.details);});
+function chooseStore(card){openStore(card.dataset.store);}
+$("storeGrid").addEventListener("click",function(e){var card=e.target.closest("[data-store]");if(card)chooseStore(card);});
+$("storeGrid").addEventListener("keydown",function(e){var card=e.target.closest("[data-store]");if(card&&(e.key==="Enter"||e.key===" ")){e.preventDefault();chooseStore(card);}});
+$("detailContent").addEventListener("click",function(e){var add=e.target.closest("[data-add]");if(add){addToCart(add.dataset.add);return;}var filter=e.target.closest("[data-filter-store]");if(filter){state.selectedStore=String(filter.dataset.filterStore);$("detailDialog").close();renderProducts();renderFilters();$("products").scrollIntoView({behavior:"smooth"});}});
+$("closeDetails").addEventListener("click",function(){$("detailDialog").close();});
+$("detailDialog").addEventListener("click",function(e){if(e.target===$("detailDialog"))$("detailDialog").close();});
 $("activeFilters").addEventListener("click",function(e){var b=e.target.closest("[data-clear]");if(!b)return;var k=b.dataset.clear;if(k==="query"){state.query="";$("searchInput").value="";}if(k==="category"){state.category="";syncCategory();}if(k==="store")state.selectedStore="";render();});
 $("cartButton").addEventListener("click",openCart);$("mobileCartButton").addEventListener("click",openCart);$("closeCart").addEventListener("click",function(){$("cartDialog").close();});
 $("cartDialog").addEventListener("click",function(e){if(e.target===$("cartDialog"))$("cartDialog").close();});
