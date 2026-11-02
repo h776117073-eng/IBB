@@ -27,6 +27,8 @@ jobs:
         with:
           node-version: "22"
       - name: Check JavaScript syntax
-        run: node --check market/app.js
+        run: |
+          node --check market/app.js
+          node --check market/merchant/app.js
       - name: Check UI contracts
         run: node scripts/validate_market.mjs
