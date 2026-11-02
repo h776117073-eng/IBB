@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102b25">
+  <meta name="description" content="بوابة ماركت إب لإضافة المتاجر والمنتجات وإرسالها للمراجعة.">
+  <title>بوابة التاجر | ماركت إب</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-inner">
+    <a class="brand" href="../index.html"><span class="brand-mark">إب</span><span><strong>ماركت إب</strong><small>بوابة التاجر</small></span></a>
+    <a class="back-link" href="../index.html">العودة إلى السوق <b>←</b></a>
+  </div></header>
+  <main class="page-shell">
+    <section class="intro">
+      <div class="intro-copy">
+        <span class="eyebrow"><i></i> للشركات والمتاجر المحلية</span>
+        <h1>خلّ متجرك<br><em>أقرب لعملائك.</em></h1>
+        <p>أرسل بيانات متجرك ومنتجاتك إلى فريق ماركت إب للمراجعة. لن تظهر البيانات للزوار إلا بعد اعتمادها.</p>
+        <div class="steps"><div class="step"><b>01</b><span>أرسل بيانات المتجر</span></div><div class="step-line"></div><div class="step"><b>02</b><span>انتظر المراجعة</span></div><div class="step-line"></div><div class="step"><b>03</b><span>أضف منتجاتك</span></div></div>
+      </div>
+      <aside class="intro-side"><div class="side-symbol">⌂</div><strong>السوق يبدأ ببيانات صحيحة</strong><p>اسم واضح، حي صحيح، وموقع قريب من مدخل المتجر يساعد العملاء على العثور عليك.</p><div class="side-rule"></div><small>مدينة إب · العملة المعتمدة للكتالوج: الريال اليمني</small></aside>
+    </section>
+    <section class="workspace">
+      <div class="workspace-heading"><div><span class="eyebrow">مركز المساهمات</span><h2>أضف بيانات نشاطك</h2><p>الإرسال لا يعني النشر الفوري أو توثيق ملكية المتجر.</p></div><span class="secure-note"><b>✓</b> مراجعة قبل النشر</span></div>
+      <div class="tabs" role="tablist" aria-label="نوع المساهمة">
+        <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="storePanel" id="storeTab" data-panel="storePanel"><span>⌂</span> بيانات المتجر</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="productPanel" id="productTab" data-panel="productPanel"><span>▤</span> إضافة منتج</button>
+      </div>
+      <section class="panel" id="storePanel" role="tabpanel" aria-labelledby="storeTab">
+        <div class="panel-title"><div class="panel-icon">⌂</div><div><h3>تعريف المتجر</h3><p>املأ بيانات النشاط الأساسية وموقعه التقريبي.</p></div></div>
+        <form id="storeForm" novalidate>
+          <div class="form-grid">
+            <label class="field full"><span>اسم المتجر أو النشاط <b>*</b></span><input name="name" maxlength="120" required placeholder="مثلاً: بقالة النور"><small>اكتب الاسم المتداول على اللوحة أو لدى السكان.</small></label>
+            <label class="field"><span>نوع النشاط</span><select name="category"><option value="">اختر الفئة</option><option>بقالة</option><option>مواد غذائية</option><option>خضروات وفواكه</option><option>مخبوزات</option><option>ملابس</option><option>أجهزة وإلكترونيات</option><option>منزل وأدوات</option><option>صيدلية</option><option>أخرى</option></select></label>
+            <label class="field"><span>الحي أو المنطقة</span><input name="neighborhood" maxlength="100" placeholder="مثلاً: شارع تعز، الظهار"></label>
+            <label class="field full"><span>وصف مختصر</span><textarea name="description" maxlength="400" rows="3" placeholder="ما الذي يميز المتجر؟ وما نوع المنتجات التي يبيعها؟"></textarea><small>لا تضف أرقام هواتف أو معلومات شخصية غير لازمة في هذا الحقل.</small></label>
+          </div>
+          <div class="location-box">
+            <div class="location-heading"><div><b>موقع المتجر</b><small>نحتاج إحداثيات تقريبية لتمييز المنشأة عن المتاجر المتشابهة.</small></div><button id="useLocation" class="location-action" type="button">⌖ استخدم موقعي</button></div>
+            <div class="coordinates">
+              <label class="field"><span>خط العرض Latitude <b>*</b></span><input name="latitude" inputmode="decimal" required placeholder="مثلاً: 13.9667"></label>
+              <label class="field"><span>خط الطول Longitude <b>*</b></span><input name="longitude" inputmode="decimal" required placeholder="مثلاً: 44.1700"></label>
+            </div>
+            <p class="location-help" id="locationHelp">اضغط «استخدم موقعي» أثناء وجودك قرب المتجر، أو أدخل الإحداثيات يدويًا. لن نطلب الموقع تلقائيًا.</p>
+          </div>
+          <div class="form-actions"><p>بعد الإرسال تحصل على رقم مساهمة. تراجع الإدارة البيانات قبل نشرها.</p><button class="submit-button" type="submit">إرسال المتجر للمراجعة <span>←</span></button></div>
+        </form>
+      </section>
+      <section class="panel hidden" id="productPanel" role="tabpanel" aria-labelledby="productTab">
+        <div class="panel-title"><div class="panel-icon product-icon">▤</div><div><h3>إضافة منتج إلى الكتالوج</h3><p>لا يمكن نشر المنتج إلا بعد اعتماد المتجر المرتبط به.</p></div></div>
+        <form id="productForm" novalidate>
+          <div class="form-grid">
+            <label class="field"><span>اسم المتجر المعتمد <b>*</b></span><input name="store_name" maxlength="120" required placeholder="الاسم كما تم اعتماده"></label>
+            <label class="field"><span>الحي لتحديد الفرع</span><input name="store_neighborhood" maxlength="100" placeholder="مطلوب إذا كان للمتجر فروع متشابهة"></label>
+            <label class="field full"><span>اسم المنتج <b>*</b></span><input name="name" maxlength="120" required placeholder="مثلاً: أرز بسمتي 5 كيلو"></label>
+            <label class="field"><span>السعر بالريال اليمني</span><input name="price" inputmode="decimal" type="number" min="0" step="1" placeholder="اتركه فارغًا إن لم يكن مؤكدًا"></label>
+            <label class="field"><span>الفئة</span><select name="category"><option value="">اختر الفئة</option><option>بقالة</option><option>مواد غذائية</option><option>خضروات</option><option>فواكه</option><option>مخبوزات</option><option>منزل</option><option>ملابس</option><option>أخرى</option></select></label>
+            <label class="field full"><span>وصف المنتج</span><textarea name="description" maxlength="400" rows="3" placeholder="الوزن أو الحجم أو المواصفات التي تميّز المنتج"></textarea></label>
+            <label class="field full"><span>رابط صورة المنتج (اختياري)</span><input name="image_url" type="url" maxlength="2048" placeholder="https://..."><small>رابط HTTPS عام فقط. رفع الصور من الهاتف غير متاح في هذه المرحلة.</small></label>
+          </div>
+          <div class="form-actions"><p>إذا لم يكن المتجر معتمدًا بعد، أرسل بياناته أولًا وانتظر الموافقة.</p><button class="submit-button" type="submit">إرسال المنتج للمراجعة <span>←</span></button></div>
+        </form>
+      </section>
+      <div id="submissionResult" class="result hidden" role="status" aria-live="polite"></div>
+    </section>
+    <section class="limitations"><div class="limit-mark">i</div><div><strong>هذه بوابة مساهمات وليست حساب تاجر متكاملًا بعد.</strong><p>لا يوجد تسجيل دخول أو إثبات ملكية أو إدارة مخزون وطلبات ومدفوعات من هذه الصفحة. الإرسال يضيف طلب مراجعة فقط، ولا يمنح صاحبه صلاحية تعديل السجل بعد اعتماده.</p></div></section>
+  </main>
+  <footer class="footer"><span>ماركت إب</span><span>بيانات أفضل · سوق محلي أوضح</span></footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
