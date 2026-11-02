@@ -459,68 +459,74 @@
         const cached=readSaved('ibb:names-cache-v2',[]);
         if(Array.isArray(cached)&&cached.length>0){
           sourceNames=cached.filter(function(x){return typeof x==='string'&&x.trim();});
-          sourceReady=true;updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');return;
+          sourceReady=true;updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');
+          return;
         }
+        const progress=$('#loadProgress'),state=$('#loadState'),count=$('#loadedCount'),fill=$('#loadProgressFill');
+        progress.classList.remove('hidden');
+        state.textContent='يتم فتح الدليل الآن؛ تحميل الأسماء مستمر في الخلفية…';
+        let idx;
         try{
-          const idxResp=await fetch(SOURCE_INDEX,{cache:'no-cache'});
-          if(!idxResp.ok)throw new Error('تعذر قراءة فهرس الأسماء');
-          const idx=await idxResp.json();
+          const controller=new AbortController();
+          const timer=setTimeout(function(){controller.abort();},10000);
+          try{
+            const response=await fetch(SOURCE_INDEX,{cache:'no-cache',signal:controller.signal});
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            idx=await response.json();
+          }finally{clearTimeout(timer);}
           const chunks=Array.isArray(idx.chunks)?idx.chunks:[];
-          if(!chunks.length)throw new Error('قائمة الملفات غير موجودة');
-          let loaded=0;
-          const arrays=new Array(chunks.length);
-          const failures=[];
-          $('#loadProgress').classList.remove('hidden');
-          $('#loadState').textContent='جارٍ تحميل أسماء المنشآت…';
-          function showPartial(){
+          if(!chunks.length)throw new Error('قائمة ملفات الأسماء غير موجودة');
+          const arrays=new Array(chunks.length),failures=[];
+          let loaded=0,finished=0;
+          async function loadChunk(file,index){
+            const controller=new AbortController();
+            const timer=setTimeout(function(){controller.abort();},10000);
+            try{
+              const response=await fetch(DATA_PREFIX+file,{cache:'force-cache',signal:controller.signal});
+              if(!response.ok)throw new Error('HTTP '+response.status);
+              const values=await response.json();
+              if(!Array.isArray(values)||values.some(function(x){return typeof x!=='string';}))throw new Error('صيغة بيانات غير متوقعة');
+              arrays[index]=values;loaded+=values.length;
+            }catch(error){failures.push(file);}
+            finally{clearTimeout(timer);finished++;}
+          }
+          function publishProgress(){
             sourceNames=arrays.filter(Array.isArray).flat();
             if(sourceNames.length){
               sourceReady=true;
               renderDirectory(true);renderFollowed();renderMapResults('');
             }
-            $('#loadedCount').textContent=loaded.toLocaleString('ar')+' اسم تم تحميله';
-            $('#loadState').textContent='جارٍ تحميل الأسماء: '+loaded.toLocaleString('ar')+' من '+idx.totalRecords.toLocaleString('ar');
-            $('#loadProgressFill').style.width=Math.min(100,Math.round(loaded/Math.max(1,idx.totalRecords)*100))+'%';
+            count.textContent=loaded.toLocaleString('ar')+' اسم تم تحميله';
+            state.textContent='الدليل يعمل — تحميل '+loaded.toLocaleString('ar')+' من '+Number(idx.totalRecords||0).toLocaleString('ar')+' اسم';
+            fill.style.width=Math.min(100,Math.round(loaded/Math.max(1,Number(idx.totalRecords)||1)*100))+'%';
           }
-          async function loadChunk(file,index){
-            let lastError=null;
-            for(let attempt=0;attempt<2;attempt++){
-              const controller=new AbortController();
-              const timer=setTimeout(function(){controller.abort();},12000);
-              try{
-                const resp=await fetch(DATA_PREFIX+file,{cache:attempt===0?'force-cache':'reload',signal:controller.signal});
-                if(!resp.ok)throw new Error('HTTP '+resp.status);
-                const arr=await resp.json();
-                if(!Array.isArray(arr)||arr.some(function(x){return typeof x!=='string';}))throw new Error('صيغة بيانات غير متوقعة');
-                arrays[index]=arr;
-                loaded+=arr.length;
-                showPartial();
-                return;
-              }catch(error){lastError=error;}
-              finally{clearTimeout(timer);}
+          // Load one small file first so the directory becomes usable quickly.
+          await loadChunk(chunks[0],0);
+          publishProgress();
+          if(!sourceNames.length)throw new Error('تعذر تحميل أول جزء من البيانات');
+          // Continue in the background; never keep the initial page opening on this work.
+          (async function(){
+            for(let i=1;i<chunks.length;i+=3){
+              await Promise.all(chunks.slice(i,i+3).map(function(file,offset){return loadChunk(file,i+offset);}));
+              publishProgress();
             }
-            failures.push(file);
-            showPartial();
-          }
-          for(let i=0;i<chunks.length;i+=5){
-            await Promise.all(chunks.slice(i,i+5).map(function(file,offset){return loadChunk(file,i+offset);}));
-          }
-          sourceNames=arrays.filter(Array.isArray).flat();
-          if(!sourceNames.length)throw new Error('تعذر تحميل أي جزء من قائمة الأسماء');
-          sourceReady=true;
-          if(failures.length===0){
-            saveSaved('ibb:names-cache-v2',sourceNames);
-            updateLoadedState();
-          }else{
-            $('#loadedCount').textContent=sourceNames.length.toLocaleString('ar')+' اسم متاح جزئيًا';
-            $('#loadState').textContent='تم تحميل '+sourceNames.length.toLocaleString('ar')+' اسم؛ تعذر تحميل '+failures.length.toLocaleString('ar')+' ملف. حدّث الصفحة لاحقًا لإعادة المحاولة.';
-            $('#loadProgressFill').style.width=Math.round(sourceNames.length/Math.max(1,idx.totalRecords)*100)+'%';
-          }
-          renderDirectory(true);renderFollowed();renderMapResults('');
+            sourceNames=arrays.filter(Array.isArray).flat();
+            if(sourceNames.length){
+              if(failures.length===0){
+                saveSaved('ibb:names-cache-v2',sourceNames);
+                updateLoadedState();
+                state.textContent='اكتمل تحميل '+sourceNames.length.toLocaleString('ar')+' اسم.';
+              }else{
+                count.textContent=sourceNames.length.toLocaleString('ar')+' اسم متاح';
+                state.textContent='الدليل يعمل جزئيًا؛ تعذر تحميل '+failures.length.toLocaleString('ar')+' ملف. أعد المحاولة لاحقًا.';
+              }
+              renderDirectory(true);renderFollowed();renderMapResults('');
+            }
+          })();
         }catch(error){
-          $('#loadState').textContent='تعذر تحميل قائمة الأسماء. تحقق من الاتصال ثم حدّث الصفحة.';
-          $('#directoryGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">!</div>'+escapeHTML(error.message||'حدث خطأ في تحميل البيانات')+'<br>يمكنك استخدام الإضافات المحلية حتى استعادة الاتصال.</div>';
-          $('#loadedCount').textContent='قائمة الأسماء غير متاحة';
+          state.textContent='تعذر تحميل البيانات الآن؛ يمكنك استخدام الدليل بعد استعادة الاتصال.';
+          $('#directoryGrid').innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-symbol">!</div>'+escapeHTML(error.message||'حدث خطأ في تحميل البيانات')+'<br>تحقق من الاتصال ثم حدّث الصفحة.</div>';
+          count.textContent='الأسماء غير متاحة مؤقتًا';
         }
       }
       function updateLoadedState(){
