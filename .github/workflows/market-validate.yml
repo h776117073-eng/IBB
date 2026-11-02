@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "market/**"
+      - "market/merchant/**"
       - "docs/PDR_*.md"
       - "scripts/validate_market.mjs"
       - ".github/workflows/market-validate.yml"
