@@ -29,6 +29,15 @@ assert.match(css, /prefers-reduced-motion/, "Consumer reduced-motion rule missin
 assert.match(html, /لا تنفّذ طلبات شراء أو مدفوعات/, "Consumer demo limitation missing");
 assert.match(html, /سلة محلية للمعاينة فقط/, "Cart demo limitation missing");
 
+
+assert.match(html, /id="detailDialog"/, "Product/store detail dialog missing");
+assert.match(app, /function openProduct/, "Product detail action missing");
+assert.match(app, /function openStore/, "Storefront action missing");
+assert.match(app, /\/api\/v1\/stores\/.*\/products/, "Store catalogue endpoint missing");
+assert.match(app, /data-details/, "Product detail trigger missing");
+assert.match(app, /data-store/, "Store detail trigger missing");
+assert.match(app, /addEventListener\("keydown"/, "Store card keyboard interaction missing");
+
 const consumer = checkDomContract(html, app, "consumer");
 
 assert.match(merchantHtml, /<html[^>]*lang="ar"[^>]*dir="rtl"/, "Merchant page must be Arabic RTL");
