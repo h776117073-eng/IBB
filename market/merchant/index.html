@@ -36,14 +36,14 @@
           <div class="form-grid">
             <label class="field full"><span>اسم المتجر أو النشاط <b>*</b></span><input name="name" maxlength="120" required placeholder="مثلاً: بقالة النور"><small>اكتب الاسم المتداول على اللوحة أو لدى السكان.</small></label>
             <label class="field"><span>نوع النشاط</span><select name="category"><option value="">اختر الفئة</option><option>بقالة</option><option>مواد غذائية</option><option>خضروات وفواكه</option><option>مخبوزات</option><option>ملابس</option><option>أجهزة وإلكترونيات</option><option>منزل وأدوات</option><option>صيدلية</option><option>أخرى</option></select></label>
-            <label class="field"><span>الحي أو المنطقة</span><input name="neighborhood" maxlength="100" placeholder="مثلاً: شارع تعز، الظهار"></label>
+            <label class="field"><span>الحي أو المنطقة</span><input name="neighborhood" autocomplete="off" maxlength="100" placeholder="مثلاً: شارع تعز، الظهار"></label>
             <label class="field full"><span>وصف مختصر</span><textarea name="description" maxlength="400" rows="3" placeholder="ما الذي يميز المتجر؟ وما نوع المنتجات التي يبيعها؟"></textarea><small>لا تضف أرقام هواتف أو معلومات شخصية غير لازمة في هذا الحقل.</small></label>
           </div>
           <div class="location-box">
             <div class="location-heading"><div><b>موقع المتجر</b><small>نحتاج إحداثيات تقريبية لتمييز المنشأة عن المتاجر المتشابهة.</small></div><button id="useLocation" class="location-action" type="button">⌖ استخدم موقعي</button></div>
             <div class="coordinates">
-              <label class="field"><span>خط العرض Latitude <b>*</b></span><input name="latitude" inputmode="decimal" required placeholder="مثلاً: 13.9667"></label>
-              <label class="field"><span>خط الطول Longitude <b>*</b></span><input name="longitude" inputmode="decimal" required placeholder="مثلاً: 44.1700"></label>
+              <label class="field"><span>خط العرض Latitude <b>*</b></span><input name="latitude" autocomplete="off" inputmode="decimal" required placeholder="مثلاً: 13.9667"></label>
+              <label class="field"><span>خط الطول Longitude <b>*</b></span><input name="longitude" autocomplete="off" inputmode="decimal" required placeholder="مثلاً: 44.1700"></label>
             </div>
             <p class="location-help" id="locationHelp">اضغط «استخدم موقعي» أثناء وجودك قرب المتجر، أو أدخل الإحداثيات يدويًا. لن نطلب الموقع تلقائيًا.</p>
           </div>
@@ -55,8 +55,8 @@
         <form id="productForm" novalidate>
           <div class="form-grid">
             <label class="field"><span>اسم المتجر المعتمد <b>*</b></span><input name="store_name" maxlength="120" required placeholder="الاسم كما تم اعتماده"></label>
-            <label class="field"><span>الحي لتحديد الفرع</span><input name="store_neighborhood" maxlength="100" placeholder="مطلوب إذا كان للمتجر فروع متشابهة"></label>
-            <label class="field full"><span>اسم المنتج <b>*</b></span><input name="name" maxlength="120" required placeholder="مثلاً: أرز بسمتي 5 كيلو"></label>
+            <label class="field"><span>الحي لتحديد الفرع</span><input name="store_neighborhood" autocomplete="off" maxlength="100" placeholder="مطلوب إذا كان للمتجر فروع متشابهة"></label>
+            <label class="field full"><span>اسم المنتج <b>*</b></span><input name="name" autocomplete="off" maxlength="120" required placeholder="مثلاً: أرز بسمتي 5 كيلو"></label>
             <label class="field"><span>السعر بالريال اليمني</span><input name="price" inputmode="decimal" type="number" min="0" step="1" placeholder="اتركه فارغًا إن لم يكن مؤكدًا"></label>
             <label class="field"><span>الفئة</span><select name="category"><option value="">اختر الفئة</option><option>بقالة</option><option>مواد غذائية</option><option>خضروات</option><option>فواكه</option><option>مخبوزات</option><option>منزل</option><option>ملابس</option><option>أخرى</option></select></label>
             <label class="field full"><span>وصف المنتج</span><textarea name="description" maxlength="400" rows="3" placeholder="الوزن أو الحجم أو المواصفات التي تميّز المنتج"></textarea></label>
