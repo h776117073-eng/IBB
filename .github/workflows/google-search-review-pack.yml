@@ -1,0 +1,60 @@
+name: Ibb Google Search review pack
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/google-search-review-pack.yml"
+      - "scripts/build_google_search_review_pack.py"
+      - "data/index.json"
+      - "data/store-names-*.json"
+  workflow_dispatch:
+    inputs:
+      page_size:
+        description: "Names per review page (50-1000)"
+        required: false
+        default: "250"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ibb-google-search-review-pack
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build review links for all source names
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout IBB
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate and build all review links
+        env:
+          PAGE_SIZE: ${{ inputs.page_size || '250' }}
+        run: |
+          python -m py_compile scripts/build_google_search_review_pack.py
+          python scripts/build_google_search_review_pack.py --self-test --page-size "$PAGE_SIZE"
+      - name: Upload review pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibb-google-search-review-pack
+          path: |
+            out/ibb_google_search_review_pack.zip
+            out/google_search_review/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Write job summary
+        run: |
+          {
+            echo "## Ibb Google Search review pack"
+            echo "- Generated one Google Search link and one Google Maps link per source record."
+            echo "- No automated Google queries or result scraping were performed."
+            echo "- Download the ibb-google-search-review-pack artifact and open index.html."
+          } >> "$GITHUB_STEP_SUMMARY"
