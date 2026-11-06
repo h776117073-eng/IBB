@@ -9,6 +9,18 @@ on:
       - "sw.js"
       - "icon.svg"
       - "scripts/validate.mjs"
+      - "scripts/import_verified_google_review.py"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "index.html"
+      - "data/**"
+      - "manifest.webmanifest"
+      - "sw.js"
+      - "icon.svg"
+      - "scripts/validate.mjs"
+      - "scripts/import_verified_google_review.py"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 permissions:
@@ -31,6 +43,12 @@ jobs:
             mkdir -p data/verified-profiles
             cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
           fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check importer syntax
+        run: python -m py_compile scripts/import_verified_google_review.py
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
