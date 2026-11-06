@@ -9,6 +9,18 @@ on:
       - "sw.js"
       - "icon.svg"
       - "scripts/validate.mjs"
+      - "scripts/import_verified_google_review.py"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "index.html"
+      - "data/**"
+      - "manifest.webmanifest"
+      - "sw.js"
+      - "icon.svg"
+      - "scripts/validate.mjs"
+      - "scripts/import_verified_google_review.py"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 permissions:
@@ -19,6 +31,25 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Expand reviewed profile package when present
+        shell: bash
+        run: |
+          if [ -f data/verified-profiles-import.zip ]; then
+            tmp="$RUNNER_TEMP/ibb-profile-package"
+            rm -rf "$tmp"
+            mkdir -p "$tmp"
+            unzip -q data/verified-profiles-import.zip -d "$tmp"
+            test -f "$tmp/data/verified-profiles/index.json"
+            mkdir -p data/verified-profiles
+            cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
+            rm -f data/verified-profiles-import.zip
+          fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check importer syntax
+        run: python -m py_compile scripts/import_verified_google_review.py
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
