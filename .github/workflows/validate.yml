@@ -42,6 +42,7 @@ jobs:
             test -f "$tmp/data/verified-profiles/index.json"
             mkdir -p data/verified-profiles
             cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
+            rm -f data/verified-profiles-import.zip
           fi
       - name: Set up Python
         uses: actions/setup-python@v5
