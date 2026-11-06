@@ -37,6 +37,7 @@ jobs:
             test -f "$tmp/data/verified-profiles/index.json"
             mkdir -p data/verified-profiles
             cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
+            rm -f data/verified-profiles-import.zip
           else
             echo "Verified profile package not uploaded; publishing existing name-only directory."
           fi
