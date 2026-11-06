@@ -212,6 +212,8 @@
       let markerLayer = null;
       let toastTimer = null;
       let sourceReady = false;
+      let verifiedBySourceName = new Map();
+      let verifiedProfilesLoaded = false;
 
       function readSaved(key, fallback){
         try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v === null ? fallback : v; }
@@ -230,6 +232,9 @@
       function searchFold(v){
         return keyOf(v).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
       }
+      function verifiedProfileFor(name){ return verifiedBySourceName.get(keyOf(name)) || null; }
+      function displayDirectoryName(name){ const p=verifiedProfileFor(name); return p ? p.verified_name : name; }
+      function profileSearchText(name){ const p=verifiedProfileFor(name); return [name,p&&p.verified_name,p&&p.category,p&&p.district,p&&p.landmark,p&&p.address_plus_code,p&&p.phone,p&&p.record_group].filter(Boolean).join(' '); }
       function showToast(message){
         const el = $('#toast'); el.textContent = message; el.classList.add('show');
         clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
@@ -270,10 +275,14 @@
       function storeCard(name, source){
         const loc = getLocation(name);
         const followedState = hasFollowed(name);
+        const profile = verifiedProfileFor(name);
+        const title = displayDirectoryName(name);
+        const subtitle = source==='shared'?'بيانات مشتركة راجعها فريق المنصة':(source==='local'?'إضافة محلية — بحاجة للمراجعة':(profile?[profile.category,profile.district].filter(Boolean).join(' · '):'اسم من القائمة — لم يتم التحقق من النشاط'));
+        const statusText = followedState?'تتابعه':(source==='shared'?'بيانات مشتركة':(profile?'مطابق في ملف المراجعة':'غير موثق'));
         return '<button class="store-card" type="button" data-action="open-store" data-name="'+escapeHTML(name)+'">'+
           '<div class="store-top"><div class="store-avatar" aria-hidden="true">🏬</div><div class="store-info">'+
-          '<div class="store-title">'+escapeHTML(name)+'</div><div class="store-sub">'+(source==='shared'?'بيانات مشتركة راجعها فريق المنصة':(source==='local'?'إضافة محلية — بحاجة للمراجعة':'اسم من القائمة — لم يتم التحقق من النشاط'))+'</div></div></div>'+
-          '<div class="store-foot"><span>'+(loc?(loc.shared?'📍 موقع منشأة منشور':'📍 موقع محلي على هذا الجهاز'):'📍 الموقع غير مضاف')+'</span><span class="status-chip '+(followedState||source==='shared'?'green':'')+'">'+(followedState?'تتابعه':(source==='shared'?'تمت مراجعة بيانات الدليل':'غير موثق'))+'</span></div></button>';
+          '<div class="store-title">'+escapeHTML(title)+'</div><div class="store-sub">'+escapeHTML(subtitle)+'</div></div></div>'+
+          '<div class="store-foot"><span>'+(loc?(loc.shared?'📍 موقع منشأة منشور':'📍 موقع محلي على هذا الجهاز'):(profile?'📍 العنوان النصي متاح — بلا دبوس GPS':'📍 الموقع غير مضاف'))+'</span><span class="status-chip '+(followedState||source==='shared'||profile?'green':'')+'">'+escapeHTML(statusText)+'</span></div></button>';
       }
       function renderDirectory(resetPage){
         if(resetPage) pageSize = 30;
@@ -282,7 +291,7 @@
         if(currentFilter === 'local') entries = entries.filter(function(e){return e.source==='local';});
         if(currentFilter === 'followed') entries = entries.filter(function(e){return hasFollowed(e.name);});
         if(currentFilter === 'located') entries = entries.filter(function(e){return !!getLocation(e.name);});
-        if(q) entries = entries.filter(function(e){return searchFold(e.name).includes(q);});
+        if(q) entries = entries.filter(function(e){return searchFold(profileSearchText(e.name)).includes(q);});
         const total = entries.length;
         const visible = entries.slice(0,pageSize);
         $('#directoryTitle').textContent = currentQuery ? 'نتائج البحث عن «'+currentQuery+'»' : (currentFilter==='followed'?'المتاجر المتابعة':currentFilter==='local'?'المتاجر المضافة محليًا':currentFilter==='located'?'الأسماء ذات المواقع المحلية':'اكتشف أسماء المنشآت');
@@ -318,16 +327,32 @@
       }
       function renderStoreDetail(name){
         currentStoreName = name;
+        const profile = verifiedProfileFor(name);
         const local = getLocalStore(name);
         const loc = getLocation(name);
         const isFollowing = hasFollowed(name);
         const productList = products.filter(function(p){return keyOf(p.storeName)===keyOf(name);});
         const claimSent = claims.indexOf(keyOf(name)) >= 0;
-        const locationText = loc ? 'إحداثيات حددها مستخدم على هذا الجهاز ('+loc.lat.toFixed(5)+', '+loc.lng.toFixed(5)+').' : 'لم يتم استيراد موقع جغرافي لهذا الاسم. يمكنك تحديده على الخريطة، وسيبقى محليًا على جهازك.';
+        const locationText = loc ? 'إحداثيات حددها مستخدم على هذا الجهاز ('+loc.lat.toFixed(5)+', '+loc.lng.toFixed(5)+').' : (profile?'يوجد عنوان نصي أو Plus Code في ملف المراجعة، لكن لم تُستورد إحداثيات GPS لهذا السجل.':'لم يتم استيراد موقع جغرافي لهذا الاسم. يمكنك تحديده على الخريطة، وسيبقى محليًا على جهازك.');
+        const mapUrl = profile ? safeImageUrl(profile.maps_search_url) : '';
+        const sourceUrl = profile ? safeImageUrl(profile.external_url) : '';
+        const phoneValue = profile && profile.phone ? String(profile.phone) : '';
+        const phoneHref = phoneValue.replace(/[^0-9+]/g,'');
+        const profilePanel = profile ? '<div class="detail-panel"><strong>بيانات السجل المراجع</strong>'+
+          '<div>التصنيف: '+escapeHTML(profile.category||'غير محدد')+'</div>'+
+          '<div>الشارع / الحي: '+escapeHTML(profile.district||'غير محدد')+'</div>'+
+          (profile.landmark?'<div>معلم قريب: '+escapeHTML(profile.landmark)+'</div>':'')+
+          (profile.address_plus_code?'<div>العنوان / Plus Code: '+escapeHTML(profile.address_plus_code)+'</div>':'')+
+          (phoneValue?'<div>الهاتف: <a href="tel:'+escapeHTML(phoneHref)+'">'+escapeHTML(phoneValue)+'</a></div>':'')+
+          (profile.rating?'<div>التقييم كما ورد بالمصدر: '+escapeHTML(profile.rating)+'</div>':'')+
+          (profile.reviews_count?'<div>عدد المراجعات كما ورد: '+escapeHTML(profile.reviews_count)+'</div>':'')+
+          (mapUrl?'<div style="margin-top:8px"><a target="_blank" rel="noopener noreferrer" href="'+escapeHTML(mapUrl)+'">فتح نتيجة البحث في خرائط Google</a></div>':'')+
+          (sourceUrl?'<div style="margin-top:6px"><a target="_blank" rel="noopener noreferrer" href="'+escapeHTML(sourceUrl)+'">فتح المصدر الإضافي</a></div>':'')+
+          '<p class="form-note" style="margin-top:9px">حالة المراجعة في الملف: '+escapeHTML(profile.verification_status||profile.review_status)+'؛ لا تعني أن النشاط مفتوح حاليًا أو أن الملكية موثقة أو أن المنتجات والأسعار متاحة.</p></div>' : '';
         $('#storeDialogContent').innerHTML =
-          '<div class="detail-title"><div class="store-avatar" style="width:54px;height:54px;font-size:25px">🏬</div><div><h2>'+escapeHTML(name)+'</h2><p>'+(local?'سجل أُضيف محليًا — غير موثق':'اسم من الملف — حالة النشاط غير متحققة')+'</p></div></div>'+
-          '<div class="local-only">لا يوجد في هذه النسخة تحقق من هوية المالك أو صحة النشاط. الاسم ليس توثيقًا للمتجر.</div>'+
-          '<div class="detail-panel"><strong>📍 الموقع</strong>'+escapeHTML(locationText)+(loc?'<div style="margin-top:8px"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+encodeURIComponent(loc.lat)+'&mlon='+encodeURIComponent(loc.lng)+'#map=17/'+encodeURIComponent(loc.lat)+'/'+encodeURIComponent(loc.lng)+'">فتح الموقع على OpenStreetMap</a></div>':'')+'</div>'+
+          '<div class="detail-title"><div class="store-avatar" style="width:54px;height:54px;font-size:25px">🏬</div><div><h2>'+escapeHTML(displayDirectoryName(name))+'</h2><p>'+(local?'سجل أُضيف محليًا — غير موثق':(profile?'بيانات اسم وعنوان مراجعة في ملف المستخدم':'اسم من الملف — حالة النشاط غير متحققة'))+'</p></div></div>'+
+          '<div class="local-only">'+(profile?'تمت مراجعة هذا السجل في الملف المرفق؛ لا يثبت ذلك حالة الفتح الحالية أو ملكية النشاط.':'لا يوجد في هذه النسخة تحقق من هوية المالك أو صحة النشاط. الاسم ليس توثيقًا للمتجر.')+'</div>'+
+          '<div class="detail-panel"><strong>📍 الموقع</strong>'+escapeHTML(locationText)+(loc?'<div style="margin-top:8px"><a target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+encodeURIComponent(loc.lat)+'&mlon='+encodeURIComponent(loc.lng)+'#map=17/'+encodeURIComponent(loc.lat)+'/'+encodeURIComponent(loc.lng)+'">فتح الموقع على OpenStreetMap</a></div>':'')+'</div>'+profilePanel+
           '<div class="dialog-actions"><button class="button button-primary" id="followStoreBtn">'+(isFollowing?'إلغاء المتابعة':'＋ متابعة المتجر')+'</button><button class="button button-outline" id="locateStoreBtn">تحديد الموقع على الخريطة</button><button class="button button-outline" id="addProductBtn">＋ إضافة منتج</button><button class="button button-ghost" id="claimStoreBtn">'+(claimSent?'مطالبة مسجلة محليًا':'المطالبة بملكية المتجر')+'</button></div>'+
           '<div class="section" style="margin-bottom:0"><div class="section-head"><div><h3>منتجات هذا المتجر</h3><p>المنتجات المضافة على هذا الجهاز فقط.</p></div></div>'+
           (productList.length?'<div class="cards-grid">'+productList.map(function(p){return '<div class="store-card"><div class="store-title">'+escapeHTML(p.name)+'</div><div class="store-sub">'+escapeHTML(p.description||'وصف غير مضاف')+'</div><div class="store-foot"><span>'+(p.price!==''&&p.price!=null?escapeHTML(Number(p.price).toLocaleString('ar')+' ر.ي.'):'السعر غير مضاف')+'</span><span class="status-chip">عرض فقط</span></div></div>';}).join('')+'</div>':'<div class="empty-state">لم يضف أحد منتجات لهذا المتجر على هذا الجهاز بعد.</div>')+'</div>'+
@@ -439,20 +464,21 @@
         });
         all.forEach(function(s){
           const marker=L.marker([s.lat,s.lng]).addTo(markerLayer);
-          marker.bindPopup('<strong>'+escapeHTML(s.name)+'</strong><br><span style="font-size:11px">'+(s.shared?'موقع منشأة منشور بعد المراجعة':'موقع محلي غير موثق')+'</span>');
+          marker.bindPopup('<strong>'+escapeHTML(displayDirectoryName(s.name))+'</strong><br><span style="font-size:11px">'+(s.shared?'موقع منشأة منشور بعد المراجعة':'موقع محلي غير موثق')+'</span>');
           marker.on('click',function(){setTimeout(function(){openStore(s.name);},100);});
         });
       }
       function renderMapResults(query){
         const q=searchFold(query||'');
         let items=allDirectoryStores();
-        if(q)items=items.filter(function(s){return searchFold(s.name).includes(q);});
+        if(q)items=items.filter(function(s){return searchFold(profileSearchText(s.name)).includes(q);});
         else items=items.filter(function(s){return !!getLocation(s.name);}).concat(items.filter(function(s){return !getLocation(s.name);}).slice(0,8));
         items=items.slice(0,35);
         $('#mapListCaption').textContent=q?('نتائج اسمية: '+items.length.toLocaleString('ar')+' معروض كحد أقصى 35.'):'المواقع المحددة محليًا أولًا، ثم عينة قصيرة من الأسماء.';
         $('#mapResults').innerHTML=items.length?items.map(function(e){
           const loc=getLocation(e.name);
-          return '<div class="map-list-item"><div class="name">'+escapeHTML(e.name)+'<div class="store-sub">'+(loc?(loc.shared?'موقع منشور بعد المراجعة':'موقع محلي على هذا الجهاز'):'بلا إحداثيات')+'</div></div><button class="button button-outline button-small" data-action="choose-location" data-name="'+escapeHTML(e.name)+'">تحديد الموقع</button></div>';
+          const profile=verifiedProfileFor(e.name);
+          return '<div class="map-list-item"><div class="name">'+escapeHTML(displayDirectoryName(e.name))+'<div class="store-sub">'+(profile?escapeHTML([profile.category,profile.district].filter(Boolean).join(' · ')):(loc?(loc.shared?'موقع منشور بعد المراجعة':'موقع محلي على هذا الجهاز'):'بلا إحداثيات GPS'))+'</div></div><button class="button button-outline button-small" data-action="choose-location" data-name="'+escapeHTML(e.name)+'">تحديد الموقع</button></div>';
         }).join(''):'<div class="empty-state">لا توجد أسماء مطابقة.</div>';
       }
       async function loadSourceNames(){
@@ -460,6 +486,7 @@
         if(Array.isArray(cached)&&cached.length>0){
           sourceNames=cached.filter(function(x){return typeof x==='string'&&x.trim();});
           sourceReady=true;updateLoadedState();renderDirectory(true);renderFollowed();renderMapResults('');
+          loadVerifiedProfiles();
           return;
         }
         const progress=$('#loadProgress'),state=$('#loadState'),count=$('#loadedCount'),fill=$('#loadProgressFill');
@@ -521,6 +548,7 @@
                 state.textContent='الدليل يعمل جزئيًا؛ تعذر تحميل '+failures.length.toLocaleString('ar')+' ملف. أعد المحاولة لاحقًا.';
               }
               renderDirectory(true);renderFollowed();renderMapResults('');
+              loadVerifiedProfiles();
             }
           })();
         }catch(error){
@@ -534,23 +562,55 @@
         $('#loadedCount').textContent=sourceNames.length.toLocaleString('ar')+' اسم مستورد';
         const sharedCount=localStores.filter(function(s){return !!s.shared;}).length;
         const localCount=localStores.filter(function(s){return !s.shared;}).length;
-        $('#loadState').textContent=localCount.toLocaleString('ar')+' إضافة محلية؛ '+sharedCount.toLocaleString('ar')+' منشأة مشتركة بعد المراجعة. الأسماء المستوردة بلا مواقع أو هواتف.';
+        const verifiedText=verifiedProfilesLoaded?'؛ '+verifiedBySourceName.size.toLocaleString('ar')+' سجل ببيانات مراجعة':'؛ بيانات المراجعة الإضافية غير محملة';
+        $('#loadState').textContent=localCount.toLocaleString('ar')+' إضافة محلية؛ '+sharedCount.toLocaleString('ar')+' منشأة مشتركة بعد المراجعة'+verifiedText+'.';
         $('#loadProgressFill').style.width='100%';
         $('#loadProgress').classList.add('hidden');
+      }
+      async function loadVerifiedProfiles(){
+        try{
+          const response=await fetch(DATA_PREFIX+'verified-profiles/index.json',{cache:'no-cache'});
+          if(response.status===404)return;
+          if(!response.ok)throw new Error('HTTP '+response.status);
+          const index=await response.json();
+          if(Number(index.totalRecords)!==sourceNames.length||!Array.isArray(index.chunks)||!index.chunks.length)throw new Error('فهرس بيانات المراجعة لا يطابق عدد الأسماء');
+          const loaded=[];
+          for(let i=0;i<index.chunks.length;i+=3){
+            const batch=await Promise.all(index.chunks.slice(i,i+3).map(async function(file){
+              if(typeof file!=='string'||!/^verified-profiles-\d{3}\.json$/.test(file))throw new Error('اسم جزء بيانات غير صالح');
+              const part=await fetch(DATA_PREFIX+'verified-profiles/'+file,{cache:'force-cache'});
+              if(!part.ok)throw new Error('تعذر تحميل '+file);
+              const values=await part.json();
+              if(!Array.isArray(values))throw new Error('صيغة جزء بيانات غير صالحة: '+file);
+              return values;
+            }));
+            loaded.push.apply(loaded,batch.flat());
+          }
+          if(loaded.length!==sourceNames.length)throw new Error('عدد سجلات المراجعة غير مكتمل');
+          const map=new Map();
+          loaded.forEach(function(profile,i){
+            const sourceName=sourceNames[i];
+            if(Number(profile.record_number)!==i+1||keyOf(profile.source_name)!==keyOf(sourceName)||profile.review_status!=='match'||!profile.record_id)throw new Error('فشل تطابق سجل المراجعة رقم '+(i+1));
+            if(map.has(keyOf(profile.source_name)))throw new Error('اسم مصدر مكرر في ملف المراجعة');
+            map.set(keyOf(profile.source_name),profile);
+          });
+          verifiedBySourceName=map;verifiedProfilesLoaded=true;
+          updateLoadedState();renderDirectory(false);renderFollowed();renderMapResults($('#mapSearch').value||'');
+        }catch(error){console.warn('تعذر تحميل بيانات المراجعة الإضافية:',error);}
       }
       function addChatMessage(text,role){
         const line=document.createElement('div');line.className='chat-message '+role;line.textContent=text;$('#chatLog').appendChild(line);$('#chatLog').scrollTop=$('#chatLog').scrollHeight;
       }
       function answerSearchAssistant(query){
         const q=searchFold(query);
-        const storeMatches=allDirectoryStores().filter(function(s){return searchFold(s.name).includes(q);}).slice(0,5);
+        const storeMatches=allDirectoryStores().filter(function(s){return searchFold(profileSearchText(s.name)).includes(q);}).slice(0,5);
         const productMatches=products.filter(function(p){return searchFold(p.name+' '+p.description+' '+p.storeName).includes(q);}).slice(0,4);
         let answer='';
         if(!q)answer='اكتب اسم متجر أو كلمة بحث.';
         else if(!storeMatches.length&&!productMatches.length)answer='لم أجد تطابقًا في الأسماء أو المنتجات المحفوظة محليًا. هذا لا يعني أن السلعة غير موجودة في المدينة.';
         else {
           answer='وجدت '+storeMatches.length.toLocaleString('ar')+' اسم/أسماء منشآت تطابق بحثك.';
-          storeMatches.forEach(function(s,i){answer+='\n'+(i+1)+'. '+s.name+(getLocation(s.name)?' — موقع محلي محدد':' — دون موقع موثّق');});
+          storeMatches.forEach(function(s,i){const p=verifiedProfileFor(s.name);answer+='\n'+(i+1)+'. '+displayDirectoryName(s.name)+(p?' — '+p.category+(p.district?'، '+p.district:''):'')+(getLocation(s.name)?' — موقع محلي محدد':' — دون إحداثيات GPS');});
           if(productMatches.length){answer+='\n\nمنتجات محلية مضافة:';productMatches.forEach(function(p){answer+='\n• '+p.name+' — '+p.storeName+(p.price!==''?' ('+p.price+' ر.ي.)':'');});}
           answer+='\n\nالنتائج من بيانات متاحة محليًا فقط، وليست تحققًا من توفر السلعة أو السعر الحالي.';
         }
