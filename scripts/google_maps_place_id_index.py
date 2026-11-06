@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "data/index.json"
 DEFAULT_CSV = ROOT / "data/input/ibb_city_all_9000_establishments_enriched_verified.csv"
 OUT_DIR = ROOT / "verification"
-IDS_FILE = OUT_DIR / "google_maps_place_ids.csv"
+RESULTS_FILE = OUT_DIR / "google_maps_place_ids.csv"
 PROGRESS_FILE = OUT_DIR / "google_maps_place_ids_progress.json"
 API_URL = "https://places.googleapis.com/v1/places:searchText"
 FIELD_MASK = "places.id"
@@ -36,6 +36,10 @@ CITY_RADIUS_M = 20000.0
 DEFAULT_BATCH_SIZE = 1000
 MAX_BATCH_SIZE = 2000
 REQUEST_INTERVAL_SECONDS = 0.25
+RESULT_FIELDS = [
+    "record_id", "source_name", "search_status", "candidate_count",
+    "google_place_ids", "maps_urls", "checked_at_utc"
+]
 
 
 def utc_now() -> str:
@@ -79,9 +83,8 @@ def record_from_csv(row: dict[str, Any], index: int) -> dict[str, Any] | None:
     name = first_value(row, "Name_AR", "name", "Name", "الاسم", "اسم المنشأة", "اسم المنشأة أو المعلم")
     if not name:
         return None
-    record_id = first_value(row, "ID", "record_id", "id") or f"csv-row-{index:05d}"
-    district = first_value(row, "District", "district", "المديرية", "المنطقة")
     address = first_value(row, "Full_Address", "Verified_Address", "address", "العنوان")
+    district = first_value(row, "District", "district", "المديرية", "المنطقة")
     query_parts = [name]
     if address:
         query_parts.append(address)
@@ -89,7 +92,7 @@ def record_from_csv(row: dict[str, Any], index: int) -> dict[str, Any] | None:
         query_parts.append(district)
     query_parts.append("Ibb Yemen")
     return {
-        "record_id": record_id,
+        "record_id": f"csv-row-{index:06d}",
         "source_name": name,
         "text_query": " ".join(part for part in query_parts if part),
         "latitude": normalize_coords(first_value(row, "Latitude", "latitude", "lat")),
@@ -121,7 +124,7 @@ def load_repository_names() -> list[dict[str, Any]]:
         chunk_path = ROOT / "data" / chunk_name
         values = json.loads(chunk_path.read_text(encoding="utf-8"))
         if not isinstance(values, list):
-            raise ValueError(f"Unexpected JSON shape in {chunk_path}")
+            raise ValueError(f"Unexpected JSON structure in {chunk_path}")
         for name in values:
             if isinstance(name, str) and name.strip():
                 n = name.strip()
@@ -153,10 +156,7 @@ def load_records(source_path: str) -> tuple[list[dict[str, Any]], str, str]:
         if not path.is_absolute():
             path = ROOT / path
     if not path.exists():
-        raise FileNotFoundError(
-            f"Input CSV not found: {path}. Upload the enriched CSV to this repository, "
-            "or use source_path=auto to scan the repository's 11,060 source names."
-        )
+        raise FileNotFoundError(f"Input CSV not found: {path}")
     records = load_csv_records(path)
     label = str(path.relative_to(ROOT) if path.is_relative_to(ROOT) else path)
     return records, label, sha256_file(path)
@@ -187,13 +187,13 @@ def parse_place_ids(payload: dict[str, Any]) -> list[str]:
     places = payload.get("places", [])
     if not isinstance(places, list):
         raise ValueError("Unexpected Places API response: 'places' must be a list")
-    output: list[str] = []
+    ids: list[str] = []
     for place in places:
         if isinstance(place, dict):
             place_id = place.get("id")
             if isinstance(place_id, str) and place_id.strip():
-                output.append(place_id.strip())
-    return list(dict.fromkeys(output))
+                ids.append(place_id.strip())
+    return list(dict.fromkeys(ids))
 
 
 def maps_url(name: str, place_id: str) -> str:
@@ -240,15 +240,41 @@ def call_places_api(api_key: str, record: dict[str, Any], timeout: int = 25) -> 
     raise RuntimeError(f"Places API request failed after retries: {last_error}")
 
 
-def load_existing_pairs(path: Path) -> set[tuple[str, str]]:
-    existing: set[tuple[str, str]] = set()
+def load_done_record_ids(path: Path) -> set[str]:
+    done: set[str] = set()
     if not path.exists():
-        return existing
+        return done
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        for row in csv.DictReader(handle):
-            if row.get("record_id") and row.get("google_place_id"):
-                existing.add((row["record_id"], row["google_place_id"]))
-    return existing
+        reader = csv.DictReader(handle)
+        if reader.fieldnames != RESULT_FIELDS:
+            raise RuntimeError(
+                f"Unexpected result file columns in {path}; move it aside before starting again."
+            )
+        for row in reader:
+            record_id = (row.get("record_id") or "").strip()
+            if record_id:
+                done.add(record_id)
+    return done
+
+
+def append_result(path: Path, record: dict[str, Any], place_ids: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = path.exists() and path.stat().st_size > 0
+    with path.open("a", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=RESULT_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow({
+            "record_id": record["record_id"],
+            "source_name": record["source_name"],
+            "search_status": "candidate_place_id_found" if place_ids else "no_place_id_returned",
+            "candidate_count": len(place_ids),
+            "google_place_ids": "|".join(place_ids),
+            "maps_urls": "|".join(maps_url(record["source_name"], pid) for pid in place_ids),
+            "checked_at_utc": utc_now(),
+        })
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def save_progress(input_hash: str, source_label: str, next_index: int, total: int) -> None:
@@ -275,12 +301,13 @@ def self_test() -> None:
     }
     ids = parse_place_ids(fake)
     assert ids == ["ChIJtestPlace123", "ChIJtestPlace456"], ids
+    assert parse_place_ids({"places": []}) == []
     rec = {"text_query": "مستشفى النصر إب اليمن", "latitude": 13.965, "longitude": 44.172}
     body = request_body(rec)
     assert body["pageSize"] == 5
     assert body["locationBias"]["circle"]["radius"] == 750.0
     assert maps_url("مستشفى النصر", ids[0]).startswith("https://www.google.com/maps/search/?api=1&query=")
-    print("SELF_TEST_OK: ID-only parsing, deduplication, location bias and Maps URL generation")
+    print("SELF_TEST_OK: ID-only parsing, no-result handling, deduplication, location bias and Maps URL generation")
 
 
 def main() -> int:
@@ -306,7 +333,7 @@ def main() -> int:
 
     api_key = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("GOOGLE_MAPS_API_KEY is not configured. Add it under Repository Settings > Secrets and variables > Actions.")
+        raise RuntimeError("GOOGLE_MAPS_API_KEY is not configured. Add it in GitHub Actions repository secrets.")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     progress: dict[str, Any] = {}
@@ -316,7 +343,7 @@ def main() -> int:
             raise RuntimeError("Input changed. Run workflow_dispatch with reset=true to start a clean index.")
     if args.reset:
         PROGRESS_FILE.unlink(missing_ok=True)
-        IDS_FILE.unlink(missing_ok=True)
+        RESULTS_FILE.unlink(missing_ok=True)
         progress = {}
 
     next_index = int(progress.get("next_index", 0))
@@ -325,36 +352,22 @@ def main() -> int:
         return 0
 
     end_index = min(len(records), next_index + args.batch_size)
-    existing = load_existing_pairs(IDS_FILE)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    file_exists = IDS_FILE.exists() and IDS_FILE.stat().st_size > 0
-    with IDS_FILE.open("a", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["record_id", "source_name", "google_place_id", "maps_url"])
-        if not file_exists:
-            writer.writeheader()
-            handle.flush()
-        for index in range(next_index, end_index):
-            record = records[index]
-            ids = call_places_api(api_key, record)
-            for place_id in ids:
-                pair = (record["record_id"], place_id)
-                if pair in existing:
-                    continue
-                writer.writerow({
-                    "record_id": record["record_id"],
-                    "source_name": record["source_name"],
-                    "google_place_id": place_id,
-                    "maps_url": maps_url(record["source_name"], place_id),
-                })
-                existing.add(pair)
-            handle.flush()
-            next_index = index + 1
-            save_progress(input_hash, source_label, next_index, len(records))
-            if next_index < end_index:
-                time.sleep(REQUEST_INTERVAL_SECONDS)
+    done_record_ids = load_done_record_ids(RESULTS_FILE)
+    for index in range(next_index, end_index):
+        record = records[index]
+        if record["record_id"] not in done_record_ids:
+            place_ids = call_places_api(api_key, record)
+            append_result(RESULTS_FILE, record, place_ids)
+            done_record_ids.add(record["record_id"])
+        next_index = index + 1
+        save_progress(input_hash, source_label, next_index, len(records))
+        if next_index < end_index:
+            time.sleep(REQUEST_INTERVAL_SECONDS)
     print(f"BATCH_COMPLETE: processed_index={next_index}/{len(records)}; complete={next_index >= len(records)}")
-    print("PERSISTED_FIELDS: source record ID/name plus Google Place ID and a Maps URL generated from that ID.")
-    print("NOT_PERSISTED: Google place name, address, phone, rating, hours, coordinates, reviews or other Google Maps Content.")
+    print("RESULT_LEDGER: one row per searched source record, including no-result rows.")
+    print("PERSISTED_GOOGLE_FIELDS: Place IDs only; Maps links are constructed from source names and Place IDs.")
+    print("NOT_PERSISTED: Google place names, addresses, phones, ratings, hours, coordinates, reviews or other Google Maps Content.")
+    print("NOTE: no Place ID returned is not proof that a business does not exist.")
     return 0
 
 
