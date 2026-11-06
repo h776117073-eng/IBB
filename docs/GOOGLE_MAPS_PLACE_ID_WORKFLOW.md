@@ -29,13 +29,13 @@ The chat-uploaded CSV is not automatically part of a GitHub repository. It must 
 
 ## Resumability
 
-Each run processes up to 1,000 records (configurable to 2,000). The workflow runs every 15 minutes and resumes from verification/google_maps_place_ids_progress.json. It commits successful Place ID results and the cursor after each batch. A transient API failure leaves the cursor at the last completed record, so the next scheduled run retries that record.
+Each run processes up to 1,000 records (configurable to 2,000). The output ledger records every searched source row, even when Places returns no Place ID. The workflow runs every 15 minutes and resumes from verification/google_maps_place_ids_progress.json. It commits successful Place ID results and the cursor after each batch. A transient API failure leaves the cursor at the last completed record, so the next scheduled run retries that record.
 
 If the source file changes, run with reset=true to avoid mixing IDs from two different source versions.
 
 ## Output
 
-- verification/google_maps_place_ids.csv: record_id, original IBB source_name, google_place_id, and a Google Maps URL built from the source name and Place ID.
+- verification/google_maps_place_ids.csv: one row per searched source record, including no-result rows, candidate count, Place IDs only, and Google Maps links built from the source name and Place ID.
 - verification/google_maps_place_ids_progress.json: source fingerprint and resumable cursor.
 
 A missing Place ID is not proof that a business does not exist. Multiple candidates require human review. Since the current repository's 11,060-record source contains names only, it has no source address, phone, or coordinates to compare. If the 9,000-row enriched CSV is uploaded to data/input/, its source address and coordinates can narrow the search; Google-derived details are still not copied or used to overwrite the CSV.
