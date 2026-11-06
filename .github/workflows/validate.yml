@@ -19,6 +19,18 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Expand reviewed profile package when present
+        shell: bash
+        run: |
+          if [ -f data/verified-profiles-import.zip ]; then
+            tmp="$RUNNER_TEMP/ibb-profile-package"
+            rm -rf "$tmp"
+            mkdir -p "$tmp"
+            unzip -q data/verified-profiles-import.zip -d "$tmp"
+            test -f "$tmp/data/verified-profiles/index.json"
+            mkdir -p data/verified-profiles
+            cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
+          fi
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
