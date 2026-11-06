@@ -142,7 +142,7 @@ def main():
     ap.add_argument("--page-size",type=int,default=250)
     ap.add_argument("--self-test",action="store_true")
     args=ap.parse_args()
-    if not 50<=args.page_size<=MAX_PAGE_SIZE:
+    if not 50<=args.page_size<=1000:
         raise ValueError("page-size must be between 50 and 1000")
     if args.self_test:self_test()
     names,source=load_names()
