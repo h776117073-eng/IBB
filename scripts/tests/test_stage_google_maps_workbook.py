@@ -28,13 +28,18 @@ class StageWorkbookTests(unittest.TestCase):
             raw = wb.create_sheet(stage.RAW_SHEET)
             raw.append(["title"]); raw.append(["description"]); raw.append([None]); raw.append(["id"]); raw.append([1])
             src = td / "fixture.xlsx"; wb.save(src)
-            old_u, old_r = stage.EXPECTED_UNIQUE_ROWS, stage.EXPECTED_RAW_ROWS
-            stage.EXPECTED_UNIQUE_ROWS, stage.EXPECTED_RAW_ROWS = 2, 1
+            old_read_rows = stage.read_rows
+            def fixture_rows(sheet):
+                    if sheet.title == stage.RAW_SHEET: return [(5, {"id": 1})]
+                    return [
+                        (5, {"الاسم الكامل (Title)":"محل إب","التصنيف بالعربية":"متجر","التصنيف الأصلي (Category)":"store","المدينة / النطاق":"إب","الشارع / الحي":"شارع","العنوان التفصيلي (Address)":"إب","كود الموقع (Plus Code)":"","رقم الهاتف (Phone)":"+967700000001","التقييم":"4.2","التقييمات":"10","خط العرض (Lat)":"13.975","خط الطول (Lon)":"44.178","معرف المكان (Place ID) والأرشيف":"ChIJAbcdefghijklm","رابط خرائط Google":""}),
+                        (6, {"الاسم الكامل (Title)":"محل خارج إب","التصنيف بالعربية":"متجر","التصنيف الأصلي (Category)":"store","المدينة / النطاق":"صنعاء","الشارع / الحي":"شارع","العنوان التفصيلي (Address)":"صنعاء","كود الموقع (Plus Code)":"","رقم الهاتف (Phone)":"","التقييم":"4","التقييمات":"2","خط العرض (Lat)":"15.35","خط الطول (Lon)":"44.18","معرف المكان (Place ID) والأرشيف":"ChIJZyxwvutsrqponm","رابط خرائط Google":""})
+                stage.read_rows = fixture_rows
             try:
                 out = td / "out"
                 manifest = stage.convert(src, out, 100)
             finally:
-                stage.EXPECTED_UNIQUE_ROWS, stage.EXPECTED_RAW_ROWS = old_u, old_r
+                stage.read_rows = old_read_rows
             rows = json.loads((out / manifest["chunks"][0]).read_text())
             self.assertEqual(len(rows), 2)
             self.assertEqual(manifest["rawSheetRecordsImported"], 0)
