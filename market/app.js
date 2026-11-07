@@ -93,16 +93,26 @@ function openStore(id){
  $("detailTitle").textContent="ملف المتجر";
  $("detailContent").innerHTML='<div class="detail-loading"><span class="loader"></span> جارٍ تحميل منتجات المتجر…</div>';
  $("detailDialog").showModal();
- api("/api/v1/stores/"+encodeURIComponent(id)+"/products").then(function(data){
+ Promise.all([
+  api("/api/v1/stores/"+encodeURIComponent(id)+"/products"),
+  api("/api/v1/stores/"+encodeURIComponent(id)+"/catalog-suggestions").catch(function(){return {items:[]};})
+ ]).then(function(results){
+  var data=results[0],suggestionData=results[1]||{items:[]};
   if(data.store)store=data.store;
   var products=Array.isArray(data.products)?data.products:[];
   products.forEach(function(p){if(!state.products.some(function(x){return String(x.id)===String(p.id);}))state.products.push(p);});
+  var suggestions=Array.isArray(suggestionData.items)?suggestionData.items:[];
+  var suggestionRows=suggestions.map(function(p){
+   var image=p.image_url?((/^https:\/\//i.test(p.image_url)?p.image_url:API+p.image_url)):"";
+   var visual=image?'<img loading="lazy" src="'+esc(image)+'" alt="" onerror="this.remove()">':'<span class="catalog-suggestion-placeholder">▤</span>';
+   return '<article class="catalog-suggestion-card">'+visual+'<div><b>'+esc(p.name)+'</b><small>'+esc(p.category||"منتج مرجعي")+'</small></div><span class="catalog-suggestion-tag">'+(p.merchant_confirmed?"أكد المتجر":"اقتراح")+'</span></article>';
+  }).join("");
+  var suggestionSection=suggestions.length?'<section class="catalog-suggestions"><h4>منتجات مناسبة من المكتبة المرجعية</h4><p>اقتراحات حسب نشاط المتجر، وليست مخزونًا أو توفرًا مؤكدًا. لا يمكن شراؤها قبل اعتماد التاجر وإضافة السعر.</p><div class="catalog-suggestion-grid">'+suggestionRows+'</div></section>':"";
   var verified=store.owner_verified===true;
   var rows=products.length?products.map(function(p){return '<div class="detail-product"><div><b>'+esc(p.name)+'</b><small>'+esc(p.category||"منتج محلي")+' · '+money(p.price,p.currency)+'</small></div><button type="button" class="detail-add" data-add="'+esc(p.id)+'" aria-label="أضف '+esc(p.name)+'">+</button></div>';}).join(""):empty("لا توجد منتجات منشورة بعد","تظهر المنتجات هنا بعد أن يضيفها المتجر وتعتمدها الإدارة.","▤");
-  $("detailContent").innerHTML='<div class="store-detail"><div class="store-detail-heading"><div class="store-avatar large">⌂</div><div><h3>'+esc(store.name)+'</h3><p>'+esc([store.category,store.neighborhood].filter(Boolean).join(" · ")||"مدينة إب")+'</p><span class="verified-chip">✓ '+(verified?"تم التحقق من الملكية":"تمت مراجعة بيانات السجل")+'</span></div></div><p class="store-description">'+esc(store.description||"لا يوجد وصف إضافي للمتجر.")+'</p><button type="button" class="filter-pill store-filter-action" data-filter-store="'+esc(store.id)+'">عرض منتجات هذا المتجر في القائمة</button><h4>منتجات المتجر</h4><div class="store-detail-products">'+rows+'</div></div>';
+  $("detailContent").innerHTML='<div class="store-detail"><div class="store-detail-heading"><div class="store-avatar large">⌂</div><div><h3>'+esc(store.name)+'</h3><p>'+esc([store.category,store.neighborhood].filter(Boolean).join(" · ")||"مدينة إب")+'</p><span class="verified-chip">✓ '+(verified?"تم التحقق من الملكية":"تمت مراجعة بيانات السجل")+'</span></div></div><p class="store-description">'+esc(store.description||"لا يوجد وصف إضافي للمتجر.")+'</p><button type="button" class="filter-pill store-filter-action" data-filter-store="'+esc(store.id)+'">عرض منتجات هذا المتجر في القائمة</button><h4>منتجات المتجر</h4><div class="store-detail-products">'+rows+'</div>'+suggestionSection+'</div>';
  }).catch(function(){
-  var products=state.products.filter(function(p){return String(p.store_id)===String(id);});
-  $("detailContent").innerHTML='<div class="store-detail"><div class="store-detail-heading"><div class="store-avatar large">⌂</div><div><h3>'+esc(store.name)+'</h3><p>'+esc([store.category,store.neighborhood].filter(Boolean).join(" · ")||"مدينة إب")+'</p></div></div>'+empty("تعذر تحميل كتالوج المتجر","تحقق من الاتصال ثم حاول مجددًا.","⌁")+'</div>';
+  $("detailContent").innerHTML='<div class="store-detail">'+empty("تعذر تحميل كتالوج المتجر","تحقق من الاتصال ثم حاول مجددًا.","⌁")+'</div>';
  });
 }
 function openCart(){renderCart();$("cartDialog").showModal();}
