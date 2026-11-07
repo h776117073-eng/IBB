@@ -13,6 +13,8 @@ def decode(directory: Path, output: Path) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     total = 0
     seen = set()
+    place_ids = set()
+    inside = outside = 0
     for source in shards:
         compressed = base64.b64decode("".join(source.read_text(encoding="ascii").split()), validate=True)
         payload = gzip.decompress(compressed)
@@ -28,13 +30,33 @@ def decode(directory: Path, output: Path) -> dict:
                 raise ValueError(f"Invalid identity state in {source.name}")
             if row.get("location_status") not in {"APPROXIMATE", "MISSING"}:
                 raise ValueError(f"Invalid location state in {source.name}")
+            if int(row.get("is_public", 0)) != 0:
+                raise ValueError(f"Candidate unexpectedly marked public in {source.name}")
+            lat, lon = row.get("latitude"), row.get("longitude")
+            if row["location_status"] == "MISSING":
+                if lat is not None or lon is not None:
+                    raise ValueError(f"Out-of-scope coordinates were not quarantined in {source.name}")
+                outside += 1
+            else:
+                if lat is None or lon is None or not (13.7 <= float(lat) <= 14.3 and 43.7 <= float(lon) <= 44.5):
+                    raise ValueError(f"Approximate coordinates outside Ibb bbox in {source.name}")
+                inside += 1
+            if not row.get("place_id") or row["place_id"] in place_ids:
+                raise ValueError(f"Missing or duplicate Place ID in {source.name}")
+            place_ids.add(row["place_id"])
             if row["id"] in seen:
                 raise ValueError(f"Duplicate ID: {row['id']}")
             seen.add(row["id"])
         (output / source.name.removesuffix(".gz.b64")).write_bytes(payload)
         total += len(rows)
-    if total != 7015:
+    if total != 7015 or total != manifest.get("uniqueSheetRecords"):
         raise ValueError(f"Expected 7,015 candidate rows, decoded {total}")
+    if len(place_ids) != manifest.get("uniquePlaceIds"):
+        raise ValueError("Unique Place ID count does not match manifest")
+    if inside != manifest.get("recordsWithinApproxIbbBbox") or outside != manifest.get("recordsOutsideApproxIbbBboxQuarantinedFromMap"):
+        raise ValueError("Coordinate quarantine counts do not match manifest")
+    if manifest.get("rawSheetRecordsAuditedButNotExported") != 16441:
+        raise ValueError("Raw sheet audit count changed unexpectedly")
     if manifest.get("rawSheetRecordsImported") != 0 or manifest.get("recordsPublished") != 0:
         raise ValueError("Manifest violates raw-data exclusion or no-publication policy")
     return {"shards": len(shards), "records": total, "unique_ids": len(seen), "published": 0}
