@@ -90,7 +90,7 @@ def first_image(value: object) -> str:
     parsed = parse_json(value, None)
     candidates = parsed if isinstance(parsed, list) else [parsed] if isinstance(parsed, dict) else [value]
     for item in candidates:
-        candidate = item.get("url") or item.get("image_url") or item.get("src") if isinstance(item, dict) else item
+        candidate = item.get("url") or item.get("image_url") or item.get("image") or item.get("src") if isinstance(item, dict) else item
         url = safe_url(candidate)
         if url:
             return url
