@@ -49,7 +49,11 @@
     maps.target = "_blank";
     maps.rel = "noopener noreferrer";
     maps.textContent = "فتح الموقع في Google Maps";
-    box.append(title, meta, maps);
+    var details = document.createElement("a");
+    details.className = "popup-link";
+    details.href = "../market/place/?id=" + encodeURIComponent(place.id);
+    details.textContent = "عرض صفحة الموقع والتفاصيل";
+    box.append(title, meta, maps, details);
     return box;
   }
   function markerIcon(place) {
