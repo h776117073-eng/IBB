@@ -10,7 +10,7 @@ on:
       - "map/**"
       - "market/**"
       - "worker/**"
-      - "scripts/validate_platform.mjs"
+      - "scripts/**"
       - ".github/workflows/ibb-platform-validation.yml"
   pull_request:
     branches: [main, integration/ibb-market-full-platform-2026-11-07]
@@ -46,3 +46,7 @@ jobs:
         run: npm test
       - name: Validate map and marketplace integration
         run: node scripts/validate_platform.mjs
+      - name: Run Python data builder tests
+        run: python -m unittest discover -s scripts/tests -v
+      - name: Compile data builder scripts
+        run: python -m compileall -q scripts
