@@ -1,0 +1,48 @@
+name: Ibb Platform Validation
+
+on:
+  push:
+    branches:
+      - feature/ibb-directory-map-product-catalog-2026-11-07
+      - integration/ibb-market-full-platform-2026-11-07
+    paths:
+      - "index.html"
+      - "map/**"
+      - "market/**"
+      - "worker/**"
+      - "scripts/validate_platform.mjs"
+      - ".github/workflows/ibb-platform-validation.yml"
+  pull_request:
+    branches: [main, integration/ibb-market-full-platform-2026-11-07]
+    paths:
+      - "index.html"
+      - "map/**"
+      - "market/**"
+      - "worker/**"
+      - "scripts/validate_platform.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check worker/src/index.js
+          node --check worker/src/directory-catalog.js
+          node --check worker/src/payments/adapter.js
+          node --check market/app.js
+          node --check map/app.js
+      - name: Run Worker unit tests
+        working-directory: worker
+        run: npm test
+      - name: Validate map and marketplace integration
+        run: node scripts/validate_platform.mjs
