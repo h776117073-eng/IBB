@@ -58,6 +58,8 @@ function pageParams(url, maxLimit) {
 
 function mapPlaceOut(row) {
   let geometry = null;
+  let openingHours = {};
+  try { openingHours = JSON.parse(row.opening_hours_json || "{}"); } catch (_) { openingHours = {}; }
   if (row.geometry_json) {
     try { geometry = JSON.parse(row.geometry_json); } catch (_) { geometry = null; }
   }
@@ -70,6 +72,18 @@ function mapPlaceOut(row) {
     district: row.district,
     neighborhood: row.neighborhood,
     phone: row.phone,
+    email: row.email,
+    website_url: row.website_url,
+    description: row.description,
+    cover_image_url: row.cover_image_url,
+    opening_hours: openingHours,
+    rating: row.rating == null ? null : Number(row.rating),
+    review_count: Number(row.review_count || 0),
+    operational_status: row.operational_status || "UNKNOWN",
+    source_name: row.source_name,
+    source_category: row.source_category,
+    plus_code: row.plus_code,
+    osm_source_id: row.osm_source_id,
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
     location_precision: row.location_precision,
@@ -122,7 +136,7 @@ async function listMapPlaces(url, env, origin) {
   }
 
   const page = pageParams(url, 500);
-  const sql = "SELECT id,name,kind,category,address,district,neighborhood,phone,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
+  const sql = "SELECT id,name,kind,category,address,district,neighborhood,phone,email,website_url,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
     "FROM directory_places WHERE " + whereSql + " ORDER BY name COLLATE NOCASE LIMIT ? OFFSET ?";
   const result = await env.DB.prepare(sql).bind(...values, page.limit, page.offset).all();
   const rows = result.results || [];
@@ -159,7 +173,7 @@ async function listCatalogProducts(url, env, origin) {
   }
   if (category) { where.push("lower(category_ar)=?"); values.push(category); }
   values.push(page.limit, page.offset);
-  const sql = "SELECT barcode,name_ar,brand_ar,category_ar,description_ar,image_key,image_status " +
+  const sql = "SELECT barcode,name_ar,brand_ar,category_ar,description_ar,image_key,image_status,translation_status,availability_status,country_relevance " +
     "FROM catalog_products WHERE " + where.join(" AND ") + " ORDER BY name_ar COLLATE NOCASE LIMIT ? OFFSET ?";
   const result = await env.DB.prepare(sql).bind(...values).all();
   return jsonResponse({
@@ -173,6 +187,10 @@ async function listCatalogProducts(url, env, origin) {
       description: row.description_ar,
       image_url: row.image_status === "READY" && row.image_key ? ("/api/v1/media/products/" + encodeURIComponent(row.image_key) + ".webp") : "",
       image_status: row.image_status,
+      translation_status: row.translation_status,
+      availability_status: row.availability_status,
+      country_relevance: row.country_relevance,
+      availability_label_ar: "مرجع عالمي؛ لا يثبت التوفر في اليمن أو لدى المتجر",
       catalog_only: true,
       merchant_confirmed: false
     })),
@@ -186,7 +204,7 @@ async function storeCatalogSuggestions(storeId, env, origin) {
   const store = await env.DB.prepare("SELECT id,name,category,neighborhood FROM stores WHERE id=? AND status='APPROVED'").bind(storeId).first();
   if (!store) return jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
   const result = await env.DB.prepare(
-    "SELECT c.barcode,c.name_ar,c.brand_ar,c.category_ar,c.description_ar,c.image_key,c.image_status,s.match_score,s.match_reason,s.status " +
+    "SELECT c.barcode,c.name_ar,c.brand_ar,c.category_ar,c.description_ar,c.image_key,c.image_status,c.availability_status,c.translation_status,c.country_relevance,s.match_score,s.match_reason,s.status " +
     "FROM store_catalog_suggestions s JOIN catalog_products c ON c.barcode=s.barcode " +
     "WHERE s.store_id=? AND s.status IN ('SUGGESTED','MERCHANT_CONFIRMED') AND c.quality_status='PUBLISHED' " +
     "ORDER BY CASE WHEN s.status='MERCHANT_CONFIRMED' THEN 0 ELSE 1 END,s.match_score DESC LIMIT 60"
@@ -203,7 +221,46 @@ async function storeCatalogSuggestions(storeId, env, origin) {
       image_url: row.image_status === "READY" && row.image_key ? ("/api/v1/media/products/" + encodeURIComponent(row.image_key) + ".webp") : "",
       match_score: Number(row.match_score),
       match_reason: row.match_reason,
+      availability_status: row.availability_status,
+      country_relevance: row.country_relevance,
+      translation_status: row.translation_status,
+      availability_label_ar: "مرجع عالمي؛ ليس مخزونًا مؤكدًا",
       merchant_confirmed: row.status === "MERCHANT_CONFIRMED",
+      catalog_only: true
+    }))
+  }, 200, origin);
+}
+
+
+async function directoryCatalogSuggestions(placeId, env, origin) {
+  if (!placeId || placeId.length > 128) return jsonResponse({ ok: false, error: "INVALID_PLACE_ID" }, 400, origin);
+  const place = await env.DB.prepare(
+    "SELECT id,name,kind,category,address,neighborhood FROM directory_places WHERE id=? AND kind='BUSINESS' AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"
+  ).bind(placeId).first();
+  if (!place) return jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
+  const result = await env.DB.prepare(
+    "SELECT p.barcode,p.name_ar,p.brand_ar,p.category_ar,p.description_ar,p.image_key,p.image_status,p.availability_status,p.translation_status,p.country_relevance,s.match_score,s.match_reason,s.status " +
+    "FROM directory_catalog_suggestions s JOIN catalog_products p ON p.barcode=s.barcode " +
+    "WHERE s.directory_place_id=? AND s.status IN ('SUGGESTED','MERCHANT_CONFIRMED') AND p.quality_status='PUBLISHED' " +
+    "ORDER BY CASE WHEN s.status='MERCHANT_CONFIRMED' THEN 0 ELSE 1 END,s.match_score DESC LIMIT 40"
+  ).bind(placeId).all();
+  return jsonResponse({
+    ok: true,
+    place: { id: place.id, name: place.name, kind: place.kind, category: place.category, address: place.address, neighborhood: place.neighborhood },
+    items: (result.results || []).map((row) => ({
+      barcode: row.barcode,
+      name: row.name_ar,
+      brand: row.brand_ar,
+      category: row.category_ar,
+      description: row.description_ar,
+      image_url: row.image_status === "READY" && row.image_key ? ("/api/v1/media/products/" + encodeURIComponent(row.image_key) + ".webp") : "",
+      match_score: Number(row.match_score),
+      match_reason: row.match_reason,
+      merchant_confirmed: row.status === "MERCHANT_CONFIRMED",
+      availability_status: row.availability_status,
+      country_relevance: row.country_relevance,
+      translation_status: row.translation_status,
+      availability_label_ar: "مرجع عالمي؛ لا يثبت التوفر لدى هذه المنشأة",
       catalog_only: true
     }))
   }, 200, origin);
@@ -230,6 +287,8 @@ export async function handleDirectoryCatalog(req, env, url, origin) {
   if (req.method === "GET" && url.pathname === "/api/v1/catalog/products") return listCatalogProducts(url, env, origin);
   match = url.pathname.match(/^\/api\/v1\/stores\/([^/]+)\/catalog-suggestions$/);
   if (req.method === "GET" && match) return storeCatalogSuggestions(decodeURIComponent(match[1]), env, origin);
+  match = url.pathname.match(/^\/api\/v1\/map\/places\/([^/]+)\/catalog-suggestions$/);
+  if (req.method === "GET" && match) return directoryCatalogSuggestions(decodeURIComponent(match[1]), env, origin);
   match = url.pathname.match(/^\/api\/v1\/media\/products\/([A-Za-z0-9_-]{3,64})\.webp$/);
   if (req.method === "GET" && match) return getProductImage(match[1], env);
   if (req.method === "GET" && url.pathname === "/api/v1/payments/readiness") {
