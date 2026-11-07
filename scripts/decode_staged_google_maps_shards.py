@@ -5,14 +5,16 @@ import argparse, base64, gzip, json
 from pathlib import Path
 
 def decode(directory: Path, output: Path) -> dict:
+    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+    expected_chunks = manifest.get("chunks", [])
     shards = sorted(directory.glob("maps-candidates-*.json.gz.b64"))
-    if len(shards) != 15:
-        raise ValueError(f"Expected 15 compressed shards, found {len(shards)}")
+    if len(shards) != len(expected_chunks):
+        raise ValueError(f"Expected {len(expected_chunks)} compressed shards, found {len(shards)}")
     output.mkdir(parents=True, exist_ok=True)
     total = 0
     seen = set()
     for source in shards:
-        compressed = base64.b64decode(source.read_text(encoding="ascii"), validate=True)
+        compressed = base64.b64decode("".join(source.read_text(encoding="ascii").split()), validate=True)
         payload = gzip.decompress(compressed)
         rows = json.loads(payload.decode("utf-8"))
         if not isinstance(rows, list) or len(rows) > 500:
@@ -33,7 +35,6 @@ def decode(directory: Path, output: Path) -> dict:
         total += len(rows)
     if total != 7015:
         raise ValueError(f"Expected 7,015 candidate rows, decoded {total}")
-    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("rawSheetRecordsImported") != 0 or manifest.get("recordsPublished") != 0:
         raise ValueError("Manifest violates raw-data exclusion or no-publication policy")
     return {"shards": len(shards), "records": total, "unique_ids": len(seen), "published": 0}
