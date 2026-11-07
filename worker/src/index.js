@@ -1,3 +1,4 @@
+import { handleDirectoryCatalog } from "./directory-catalog.js";
 const V="1";
 class InputError extends Error{}
 export function norm(v){return String(v||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();}
@@ -28,7 +29,8 @@ async function route(req,e){const u=new URL(req.url),o=req.headers.get("Origin")
 if(req.method==="GET"&&u.pathname==="/api/health"){await e.DB.prepare("SELECT 1").first();return out({ok:true,service:"ibb-market-api",database:"connected",api_version:V},200,o,e);}
 if(req.method==="GET"&&u.pathname==="/api/v1/stores")return out(await listStores(u,e),200,o,e);
 if(req.method==="GET"&&u.pathname==="/api/v1/products")return out(await listProducts(u,e),200,o,e);
-let m=u.pathname.match(/^\/api\/v1\/stores\/([^/]+)\/products$/);if(req.method==="GET"&&m){const id=decodeURIComponent(m[1]),r=await e.DB.prepare("SELECT id,name,category,description,neighborhood,latitude,longitude,owner_verified,status,created_at,updated_at FROM stores WHERE id=? AND status='APPROVED'").bind(id).first();if(!r)return out({ok:false,error:"NOT_FOUND"},404,o,e);const q=new URL(u);q.searchParams.set("store_id",id);return out({ok:true,store:storeOut(r),products:(await listProducts(q,e)).items},200,o,e);}
+let m=u.pathname.match(/^\/api\/v1\/stores\/([^/]+)\/products$/);if(req.method==="GET"&&m){const id=decodeURIComponent(m[1]),r=await e.DB.prepare("SELECT id,name,category,description,neighborhood,latitude,longitude,owner_verified,status,created_at,updated_at FROM stores WHERE id=? AND status='APPROVED'").bind(id).first();if(!r)const extended=await handleDirectoryCatalog(req,e,u,o);if(extended)return extended;
+return out({ok:false,error:"NOT_FOUND"},404,o,e);const q=new URL(u);q.searchParams.set("store_id",id);return out({ok:true,store:storeOut(r),products:(await listProducts(q,e)).items},200,o,e);}
 m=u.pathname.match(/^\/api\/v1\/stores\/([^/]+)$/);if(req.method==="GET"&&m){const r=await e.DB.prepare("SELECT id,name,category,description,neighborhood,latitude,longitude,owner_verified,status,created_at,updated_at FROM stores WHERE id=? AND status='APPROVED'").bind(decodeURIComponent(m[1])).first();return r?out({ok:true,store:storeOut(r)},200,o,e):out({ok:false,error:"NOT_FOUND"},404,o,e);}
 if(req.method==="POST"&&u.pathname==="/api/v1/submissions/stores"){const r=await submit(req,e,"STORE",storeInput(await read(req)));return out(r.data,r.status,o,e);}
 if(req.method==="POST"&&u.pathname==="/api/v1/submissions/products"){const r=await submit(req,e,"PRODUCT",productInput(await read(req)));return out(r.data,r.status,o,e);}
