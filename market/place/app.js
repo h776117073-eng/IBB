@@ -22,7 +22,7 @@ if(place.phone){var phone=String(place.phone).replace(/[^+0-9]/g,"");$("phoneLin
 var website=safeHttp(place.website_url);if(website){$("websiteLink").href=website;$("websiteLink").hidden=false;}
 addDetail("العنوان",place.address);addDetail("الحي",place.neighborhood);addDetail("المنطقة",place.district);addDetail("الهاتف",place.phone,place.phone?"tel:"+String(place.phone).replace(/[^+0-9]/g,""):"");addDetail("البريد الإلكتروني",place.email,place.email?"mailto:"+place.email:"");addDetail("الموقع الإلكتروني",website,website);addDetail("رمز الموقع Plus Code",place.plus_code);addDetail("مصدر السجل",place.source_name||"خرائط Google");addDetail("دقة الموقع",place.location_precision==="EXACT"?"إحداثيات دقيقة من المصدر":place.location_precision==="APPROXIMATE"?"إحداثيات تقريبية":"غير محددة");
 renderHours(place.opening_hours||{});renderSuggestions(suggestions);
-var claim=new URL("../merchant/",location.href);claim.searchParams.set("claim_id",place.id);claim.searchParams.set("name",place.name||"");claim.searchParams.set("category",place.category||"");claim.searchParams.set("latitude",place.latitude);claim.searchParams.set("longitude",place.longitude);$("claimLink").href=claim.toString();
+var claim=new URL("../merchant/",location.href);claim.searchParams.set("source_place_id",place.id);claim.searchParams.set("name",place.name||"");claim.searchParams.set("category",place.category||"");claim.searchParams.set("neighborhood",place.neighborhood||place.district||"");claim.searchParams.set("latitude",place.latitude);claim.searchParams.set("longitude",place.longitude);$("claimLink").href=claim.toString();
 }
 if(!id){$("status").textContent="رابط الموقع غير مكتمل. افتح الموقع من الخريطة.";return;}
 Promise.all([
