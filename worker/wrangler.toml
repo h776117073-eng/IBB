@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-11-01"
 workers_dev = true
 [vars]
-ALLOWED_ORIGINS = "https://h776117073-eng.github.io,http://localhost:4173"
+ALLOWED_ORIGINS = "https://h776117073-eng.github.io,https://ibb-market.pages.dev,http://localhost:4173"
 [[d1_databases]]
 binding = "DB"
 database_name = "ibb-market-shared"
