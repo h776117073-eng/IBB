@@ -28,6 +28,29 @@ function switchPanel(panelId){
 document.querySelectorAll(".tab").forEach(function(tab){
  tab.addEventListener("click",function(){switchPanel(tab.dataset.panel);});
 });
+
+var registrationParams=new URLSearchParams(location.search);
+if(registrationParams.get("name")){
+ switchPanel("storePanel");
+ var registrationForm=$("storeForm");
+ registrationForm.elements.namedItem("name").value=registrationParams.get("name")||"";
+ var rawCategory=(registrationParams.get("category")||"").toLowerCase();
+ var categoryMap={
+  "grocery store":"بقالة","convenience store":"بقالة","supermarket":"مواد غذائية","market":"مواد غذائية",
+  "pharmacy":"صيدلية","clothing store":"ملابس","electronics store":"أجهزة وإلكترونيات",
+  "bakery":"مخبوزات","baker":"مخبوزات","fruit and vegetable store":"خضروات وفواكه",
+  "home goods store":"منزل وأدوات","hardware store":"منزل وأدوات"
+ };
+ var mappedCategory=categoryMap[rawCategory]||registrationParams.get("category")||"أخرى";
+ var categoryField=registrationForm.elements.namedItem("category");
+ if(Array.from(categoryField.options).some(function(o){return o.value===mappedCategory||o.text===mappedCategory;}))categoryField.value=mappedCategory;
+ else categoryField.value="أخرى";
+ registrationForm.elements.namedItem("neighborhood").value=registrationParams.get("neighborhood")||"";
+ registrationForm.elements.namedItem("latitude").value=registrationParams.get("latitude")||"";
+ registrationForm.elements.namedItem("longitude").value=registrationParams.get("longitude")||"";
+ $("locationHelp").textContent="تمت تعبئة الاسم والفئة والإحداثيات من صفحة الدليل. راجع الموقع وتأكد من بيانات المتجر قبل الإرسال.";
+}
+
 function value(form,name){var field=form.elements.namedItem(name);return field?String(field.value||"").trim():"";}
 function showButtonState(button,busy,label){
  if(!button.dataset.originalText)button.dataset.originalText=button.innerHTML;
