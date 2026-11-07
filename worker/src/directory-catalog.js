@@ -155,7 +155,7 @@ async function listMapPlaces(url, env, origin) {
 async function getMapPlace(id, env, origin) {
   if (!id || id.length > 128) return jsonResponse({ ok: false, error: "INVALID_ID" }, 400, origin);
   const row = await env.DB.prepare(
-    "SELECT id,name,kind,category,address,district,neighborhood,phone,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
+    "SELECT id,name,kind,category,address,district,neighborhood,phone,email,website_url,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
     "FROM directory_places WHERE id=? AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"
   ).bind(id).first();
   return row ? jsonResponse({ ok: true, item: mapPlaceOut(row) }, 200, origin) : jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
