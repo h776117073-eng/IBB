@@ -14,7 +14,7 @@ on:
       - "scripts/**"
       - ".github/workflows/ibb-platform-validation.yml"
   pull_request:
-    branches: [main, integration/ibb-market-full-platform-2026-11-07]
+    branches: [main, integration/ibb-market-full-platform-2026-11-07, feature/ibb-directory-map-product-catalog-2026-11-07]
     paths:
       - "index.html"
       - "map/**"
