@@ -1,4 +1,4 @@
-import { paymentReadiness } from "./payments/adapter.js";
+import { paymentReadiness, constantTimeEqual } from "./payments/adapter.js";
 
 const API_VERSION = "2";
 const KINDS = new Set(["BUSINESS", "LANDMARK", "STREET", "NEIGHBORHOOD", "PUBLIC_SERVICE", "OTHER"]);
@@ -280,7 +280,163 @@ async function getProductImage(barcode, env) {
   return new Response(object.body, { headers });
 }
 
+
+function authorizedImport(req, env) {
+  const expected = String(env.IMPORT_API_KEY || "");
+  const supplied = String(req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return Boolean(expected && supplied && constantTimeEqual(expected, supplied));
+}
+
+async function readImportItems(req, maxItems) {
+  const declared = Number(req.headers.get("content-length") || 0);
+  if (declared > 1200000) return { error: "PAYLOAD_TOO_LARGE", status: 413 };
+  let raw = "";
+  try { raw = await req.text(); } catch (_) { return { error: "INVALID_BODY", status: 400 }; }
+  if (raw.length > 1200000) return { error: "PAYLOAD_TOO_LARGE", status: 413 };
+  let body;
+  try { body = JSON.parse(raw); } catch (_) { return { error: "INVALID_JSON", status: 400 }; }
+  if (!body || !Array.isArray(body.items)) return { error: "ITEMS_ARRAY_REQUIRED", status: 400 };
+  if (body.items.length > maxItems) return { error: "BATCH_LIMIT_EXCEEDED", status: 413, max_items: maxItems };
+  return { items: body.items };
+}
+
+function textValue(value, max = 4000) {
+  return String(value == null ? "" : value).trim().slice(0, max);
+}
+
+function numericValue(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function importRows(req, env, origin, type) {
+  if (!authorizedImport(req, env)) return jsonResponse({ ok: false, error: "UNAUTHORIZED" }, 401, origin);
+  const maxItems = type === "directory" ? 250 : type === "products" ? 250 : 500;
+  const parsed = await readImportItems(req, maxItems);
+  if (parsed.error) return jsonResponse({ ok: false, error: parsed.error, max_items: parsed.max_items }, parsed.status, origin);
+  const now = new Date().toISOString();
+  let columns, rows, table, conflictKey, updateFields;
+  if (type === "directory") {
+    table = "directory_places";
+    columns = ["id","source_file","source_record_id","name","name_norm","kind","category","category_norm","source_category","address","address_norm","district","neighborhood","phone","email","website_url","description","cover_image_url","opening_hours_json","rating","review_count","operational_status","latitude","longitude","geometry_type","geometry_json","location_precision","identity_status","location_status","verification_status","visibility_status","is_commercial","is_public","place_id","plus_code","osm_source_id","maps_url","source_name","source_status","source_url","source_hash","created_at","updated_at"];
+    const allowedKinds = new Set(["BUSINESS","LANDMARK","STREET","NEIGHBORHOOD","PUBLIC_SERVICE","OTHER"]);
+    const allowedVisibility = new Set(["PUBLISHED","NEEDS_REVIEW","HIDDEN"]);
+    const allowedVerification = new Set(["VERIFIED_MATCH","PARTIAL_MATCH","UNVERIFIED","REJECTED"]);
+    const allowedPrecision = new Set(["EXACT","APPROXIMATE","MISSING"]);
+    const allowedOperational = new Set(["OPEN","CLOSED","TEMPORARILY_CLOSED","UNKNOWN"]);
+    rows = [];
+    for (const x of parsed.items) {
+      const lat = numericValue(x.latitude), lon = numericValue(x.longitude);
+      const kind = textValue(x.kind, 32), visibility = textValue(x.visibility_status, 32), verification = textValue(x.verification_status, 32);
+      if (!textValue(x.id,128) || !textValue(x.name,300) || !allowedKinds.has(kind) || !allowedVisibility.has(visibility) || !allowedVerification.has(verification)) {
+        return jsonResponse({ ok:false,error:"INVALID_DIRECTORY_RECORD",record_id:textValue(x.id,128) },400,origin);
+      }
+      if (visibility === "PUBLISHED" && (verification !== "VERIFIED_MATCH" || lat === null || lon === null || lat < -90 || lat > 90 || lon < -180 || lon > 180)) {
+        return jsonResponse({ ok:false,error:"PUBLISHED_PLACE_REQUIRES_VERIFIED_COORDINATES",record_id:textValue(x.id,128) },400,origin);
+      }
+      const precision = textValue(x.location_precision,24);
+      const operational = textValue(x.operational_status,32);
+      if (!allowedPrecision.has(precision) || !allowedOperational.has(operational)) return jsonResponse({ok:false,error:"INVALID_PLACE_STATUS",record_id:textValue(x.id,128)},400,origin);
+      rows.push({
+        ...x, id:textValue(x.id,128), source_file:textValue(x.source_file,200), source_record_id:textValue(x.source_record_id,200),
+        name:textValue(x.name,300), name_norm:textValue(x.name_norm,400), kind, category:textValue(x.category,160),
+        category_norm:textValue(x.category_norm,200), source_category:textValue(x.source_category,200),
+        address:textValue(x.address,1000), address_norm:textValue(x.address_norm,1200), district:textValue(x.district,200),
+        neighborhood:textValue(x.neighborhood,200), phone:textValue(x.phone,100), email:textValue(x.email,200),
+        website_url:textValue(x.website_url,1000), description:textValue(x.description,1200), cover_image_url:textValue(x.cover_image_url,2000),
+        opening_hours_json:textValue(x.opening_hours_json || "{}",4000), rating:numericValue(x.rating), review_count:Math.max(0,Math.floor(numericValue(x.review_count)||0)),
+        operational_status:operational, latitude:lat, longitude:lon, geometry_type:textValue(x.geometry_type || "POINT",24),
+        geometry_json:textValue(x.geometry_json,20000), location_precision:precision,
+        identity_status:textValue(x.identity_status,32), location_status:textValue(x.location_status,32), verification_status:verification,
+        visibility_status:visibility, is_commercial:x.is_commercial ? 1 : 0, is_public:x.is_public ? 1 : 0,
+        place_id:textValue(x.place_id,256), plus_code:textValue(x.plus_code,100), osm_source_id:textValue(x.osm_source_id,200),
+        maps_url:textValue(x.maps_url,2000), source_name:textValue(x.source_name,100), source_status:textValue(x.source_status,200),
+        source_url:textValue(x.source_url,2000), source_hash:textValue(x.source_hash,128), created_at:textValue(x.created_at,64)||now, updated_at:textValue(x.updated_at,64)||now
+      });
+    }
+    conflictKey = "id";
+  } else if (type === "products") {
+    table = "catalog_products";
+    columns = ["barcode","name_source","name_ar","brand_source","brand_ar","category_source","category_ar","description_ar","image_key","image_source_url","image_drive_file_id","image_status","quality_status","translation_status","availability_status","country_relevance","countries_source","source_name","source_url","country_code","created_at","updated_at"];
+    rows = [];
+    for (const x of parsed.items) {
+      const barcode = textValue(x.barcode,32);
+      const imageStatus = textValue(x.image_status,24), quality = textValue(x.quality_status,24);
+      const translation = textValue(x.translation_status,32), availability = textValue(x.availability_status,32), relevance = textValue(x.country_relevance,32);
+      if (!/^\d{8,14}$/.test(barcode) || !textValue(x.name_ar,300) || !["MISSING","PENDING","READY","FAILED"].includes(imageStatus) ||
+          !["CANDIDATE","PUBLISHED","REJECTED"].includes(quality) || !["SOURCE_ARABIC","MODEL_TRANSLATED","REVIEWED","NEEDS_TRANSLATION"].includes(translation) ||
+          !["REFERENCE_ONLY","LOCAL_VERIFIED","MERCHANT_CONFIRMED"].includes(availability) || !["YEMEN","ARABIC_REGION","UNKNOWN","FOREIGN"].includes(relevance)) {
+        return jsonResponse({ok:false,error:"INVALID_CATALOG_PRODUCT",barcode},400,origin);
+      }
+      if (availability !== "REFERENCE_ONLY") return jsonResponse({ok:false,error:"CATALOG_IMPORT_MUST_BE_REFERENCE_ONLY",barcode},400,origin);
+      rows.push({
+        ...x, barcode, name_source:textValue(x.name_source,500), name_ar:textValue(x.name_ar,300),
+        brand_source:textValue(x.brand_source,300), brand_ar:textValue(x.brand_ar,300),
+        category_source:textValue(x.category_source,500), category_ar:textValue(x.category_ar,200),
+        description_ar:textValue(x.description_ar,1000), image_key:textValue(x.image_key,64),
+        image_source_url:textValue(x.image_source_url,2000), image_drive_file_id:textValue(x.image_drive_file_id,256),
+        image_status:imageStatus, quality_status:quality, translation_status:translation,
+        availability_status:availability, country_relevance:relevance, countries_source:textValue(x.countries_source,500),
+        source_name:textValue(x.source_name,100), source_url:textValue(x.source_url,2000),
+        country_code:textValue(x.country_code,12), created_at:textValue(x.created_at,64)||now, updated_at:textValue(x.updated_at,64)||now
+      });
+    }
+    conflictKey = "barcode";
+  } else {
+    table = "directory_catalog_suggestions";
+    columns = ["id","directory_place_id","barcode","match_score","match_reason","status","created_at","reviewed_at"];
+    rows = [];
+    for (const x of parsed.items) {
+      const score = numericValue(x.match_score), status = textValue(x.status,32);
+      if (!textValue(x.id,128) || !textValue(x.directory_place_id,128) || !/^\d{8,14}$/.test(textValue(x.barcode,32)) ||
+          score === null || score < 0 || score > 1 || !["SUGGESTED","MERCHANT_CONFIRMED","REJECTED"].includes(status)) {
+        return jsonResponse({ok:false,error:"INVALID_DIRECTORY_CATALOG_SUGGESTION",suggestion_id:textValue(x.id,128)},400,origin);
+      }
+      rows.push({id:textValue(x.id,128),directory_place_id:textValue(x.directory_place_id,128),barcode:textValue(x.barcode,32),match_score:score,match_reason:textValue(x.match_reason,1000),status,created_at:textValue(x.created_at,64)||now,reviewed_at:x.reviewed_at?textValue(x.reviewed_at,64):null});
+    }
+    conflictKey = "id";
+  }
+  if (!rows.length) return jsonResponse({ok:true,imported:0,table},200,origin);
+  const updates = columns.filter((x) => x !== conflictKey && x !== "created_at").map((x) => x+"=excluded."+x).join(",");
+  const sql = "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT("+conflictKey+") DO UPDATE SET "+updates;
+  try {
+    const statements = rows.map((row) => env.DB.prepare(sql).bind(...columns.map((key) => row[key] === undefined ? null : row[key])));
+    await env.DB.batch(statements);
+    return jsonResponse({ok:true,table,imported:rows.length,first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]},200,origin);
+  } catch (error) {
+    return jsonResponse({ok:false,error:"DB_IMPORT_FAILED",detail:textValue(error && error.message,500),table},500,origin);
+  }
+}
+
+async function importStats(env, origin) {
+  try {
+    const queries = [
+      ["directory_places","SELECT COUNT(*) AS total FROM directory_places"],
+      ["published_places","SELECT COUNT(*) AS total FROM directory_places WHERE visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"],
+      ["catalog_products","SELECT COUNT(*) AS total FROM catalog_products"],
+      ["published_products","SELECT COUNT(*) AS total FROM catalog_products WHERE quality_status='PUBLISHED'"],
+      ["products_with_images","SELECT COUNT(*) AS total FROM catalog_products WHERE image_status='READY'"],
+      ["directory_suggestions","SELECT COUNT(*) AS total FROM directory_catalog_suggestions"]
+    ];
+    const results = await Promise.all(queries.map(async ([key,sql]) => {
+      const row = await env.DB.prepare(sql).first();
+      return [key,Number(row && row.total || 0)];
+    }));
+    return jsonResponse({ok:true,stats:Object.fromEntries(results)},200,origin);
+  } catch (error) {
+    return jsonResponse({ok:false,error:"DB_STATS_FAILED",detail:textValue(error && error.message,300)},500,origin);
+  }
+}
+
 export async function handleDirectoryCatalog(req, env, url, origin) {
+  if (req.method === "GET" && url.pathname === "/api/v1/admin/catalog/stats") {
+    if (!authorizedImport(req, env)) return jsonResponse({ok:false,error:"UNAUTHORIZED"},401,origin);
+    return importStats(env, origin);
+  }
+  if (req.method === "POST" && url.pathname === "/api/v1/admin/directory/import") return importRows(req, env, origin, "directory");
+  if (req.method === "POST" && url.pathname === "/api/v1/admin/catalog/import") return importRows(req, env, origin, "products");
+  if (req.method === "POST" && url.pathname === "/api/v1/admin/directory-catalog-suggestions/import") return importRows(req, env, origin, "suggestions");
   if (req.method === "GET" && url.pathname === "/api/v1/map/places") return listMapPlaces(url, env, origin);
   let match = url.pathname.match(/^\/api\/v1\/map\/places\/([^/]+)$/);
   if (req.method === "GET" && match) return getMapPlace(decodeURIComponent(match[1]), env, origin);
