@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="ملف المنشأة أو المعلم في دليل إب ماركت.">
+  <title>ملف الموقع | إب ماركت</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../../" aria-label="إب ماركت"><span class="brand-mark">إب</span><span><strong>إب ماركت</strong><small>دليل الأماكن والمتاجر</small></span></a>
+    <nav><a href="../../">الدليل</a><a href="../">السوق</a><a href="../../map/">الخريطة</a></nav>
+  </header>
+  <main class="place-shell">
+    <a class="back-link" href="../../map/">← العودة إلى الخريطة</a>
+    <div id="status" class="status" role="status" aria-live="polite">جارٍ تحميل ملف الموقع...</div>
+    <section id="placeHeader" class="place-header" hidden>
+      <div class="cover-wrap"><img id="coverImage" alt="" loading="lazy"><div id="coverFallback" class="cover-fallback">⌖</div></div>
+      <div class="place-heading">
+        <span id="kindTag" class="kind-tag"></span>
+        <h1 id="placeName"></h1>
+        <p id="placeCategory" class="muted"></p>
+        <div id="rating" class="rating"></div>
+        <div id="operationalStatus" class="operational-status"></div>
+        <div class="actions">
+          <a id="mapsLink" class="action primary" target="_blank" rel="noopener noreferrer">فتح في Google Maps</a>
+          <a id="directionsLink" class="action secondary" target="_blank" rel="noopener noreferrer">الاتجاهات</a>
+          <a id="phoneLink" class="action secondary" hidden>اتصال</a>
+          <a id="websiteLink" class="action secondary" target="_blank" rel="noopener noreferrer" hidden>الموقع الإلكتروني</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="detailsSection" class="panel" hidden>
+      <h2>تفاصيل الموقع</h2>
+      <div id="detailsGrid" class="details-grid"></div>
+      <div id="hoursSection" class="hours-section" hidden>
+        <h3>ساعات العمل المسجلة</h3>
+        <div id="hoursGrid" class="hours-grid"></div>
+      </div>
+      <p class="source-note">المعلومات من مصادر الخرائط والدليل، وقد تتغير. يُرجى التأكد من المنشأة قبل الزيارة.</p>
+    </section>
+
+    <section id="suggestionsSection" class="panel" hidden>
+      <div class="section-heading"><div><h2>منتجات مناسبة من مكتبة إب ماركت</h2><p>اقتراحات بحسب نشاط الموقع، وليست مخزونًا أو أسعارًا مؤكدة.</p></div><span class="reference-tag">كتالوج مرجعي</span></div>
+      <div id="suggestionsGrid" class="suggestions-grid"></div>
+    </section>
+
+    <section id="claimSection" class="claim-panel" hidden>
+      <div><h2>هل تملك هذه المنشأة؟</h2><p>يمكنك طلب إدارة الصفحة وإضافة منتجاتك وأسعارك وتأكيد التوفر بعد مراجعة الملكية.</p></div>
+      <a id="claimLink" class="action primary" href="../merchant/">طلب إدارة الصفحة</a>
+    </section>
+    <footer class="footer">إب ماركت — دليل محلي. وجود منتج في المكتبة لا يعني توفره لدى هذه المنشأة.</footer>
+  </main>
+</body>
+</html>
