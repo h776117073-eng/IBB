@@ -88,7 +88,7 @@
   function renderList(items, clustered) {
     listEl.replaceChildren();
     if (!items.length) {
-      addEmpty("لا توجد مواقع موثقة ضمن هذا النطاق. جرّب تغيير البحث أو توسيع الخريطة.");
+      addEmpty("لا توجد مواقع من مصدر خرائط Google ضمن هذا النطاق. جرّب تغيير البحث أو توسيع الخريطة.");
       return;
     }
     if (clustered) {
@@ -111,7 +111,7 @@
       copy.append(name, meta);
       var tag = document.createElement("span");
       tag.className = "result-tag";
-      tag.textContent = place.location_precision === "APPROXIMATE" ? "تقريبي" : "موثق";
+      tag.textContent = place.location_precision === "APPROXIMATE" ? "إحداثيات تقريبية" : "إحداثيات Google Maps";
       button.append(icon, copy, tag);
       button.addEventListener("click", function () {
         map.setView([place.latitude, place.longitude], Math.max(16, map.getZoom()));
@@ -155,7 +155,7 @@
       items.forEach(function (item) { if (item.cluster) addCluster(item); else addPlace(item); });
       renderList(items, !!data.clustered);
       countEl.textContent = data.clustered ? items.reduce(function (n, x) { return n + Number(x.count || 0); }, 0).toLocaleString("ar") : items.length.toLocaleString("ar");
-      statusEl.textContent = data.clustered ? "مجموعات مواقع ضمن النطاق" : "مواقع موثقة ضمن النطاق";
+      statusEl.textContent = data.clustered ? "مجموعات مواقع ضمن النطاق" : "مواقع من خرائط Google ضمن النطاق";
       if (!items.length) {
         noticeEl.textContent = "واجهة الخريطة جاهزة، لكن لا توجد سجلات منشورة في قاعدة بيانات الخريطة حتى الآن.";
         noticeEl.hidden = false;
