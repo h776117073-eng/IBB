@@ -29,9 +29,9 @@ export function classifyEntityKind(name, category) {
   const text = normalizeText(String(name || "") + " " + String(category || ""));
   if (/(شارع|طريق|جسر|نفق|دوار|تقاطع|جولة|ميدان)/.test(text)) return "STREET";
   if (/(حارة|حي\\s|منطقة سكنية|قرية|عزلة|محلة)/.test(text)) return "NEIGHBORHOOD";
-  if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|قلعة|حصن|أثر|مدرسة تاريخية)/.test(text)) return "LANDMARK";
+  if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|سوق|قلعة|حصن|أثر|مدرسة تاريخية)/.test(text)) return "LANDMARK";
   if (/(مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام)/.test(text)) return "PUBLIC_SERVICE";
-  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|سوق|ورشة|مركز تجاري|مكتبة|ملابس|جوالات|إلكترونيات)/.test(text)) return "BUSINESS";
+  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|سوق|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات)/.test(text)) return "BUSINESS";
   return "OTHER";
 }
 
@@ -154,10 +154,10 @@ async function listCatalogProducts(url, env, origin) {
   const where = ["quality_status='PUBLISHED'"];
   const values = [];
   if (q) {
-    where.push("(instr(name_ar,?)>0 OR instr(brand_ar,?)>0 OR instr(category_ar,?)>0)");
+    where.push("(instr(lower(name_ar),?)>0 OR instr(lower(brand_ar),?)>0 OR instr(lower(category_ar),?)>0)");
     values.push(q, q, q);
   }
-  if (category) { where.push("category_ar=?"); values.push(category); }
+  if (category) { where.push("lower(category_ar)=?"); values.push(category); }
   values.push(page.limit, page.offset);
   const sql = "SELECT barcode,name_ar,brand_ar,category_ar,description_ar,image_key,image_status " +
     "FROM catalog_products WHERE " + where.join(" AND ") + " ORDER BY name_ar COLLATE NOCASE LIMIT ? OFFSET ?";
