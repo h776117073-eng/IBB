@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create non-inventory product suggestions for public Google Maps business pages."""
 from __future__ import annotations
-import argparse, hashlib, json
+import argparse, gzip, hashlib, json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,7 +40,8 @@ def product_matches(product: dict, profile: str) -> bool:
     return False
 
 def read_jsonl(path: str):
-    with open(path,encoding="utf-8") as f:
+    opener=gzip.open if path.endswith(".gz") else open
+    with opener(path,"rt",encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 yield json.loads(line)
@@ -82,7 +83,8 @@ def main():
                 "reviewed_at":None
             })
     out=Path(args.output);out.parent.mkdir(parents=True,exist_ok=True)
-    with out.open("w",encoding="utf-8") as f:
+    opener=gzip.open if str(out).endswith(".gz") else open
+    with opener(out,"wt",encoding="utf-8") as f:
         for row in suggestions:f.write(json.dumps(row,ensure_ascii=False)+"\n")
     print(json.dumps({"suggestions":len(suggestions),"places_by_profile":counts,"per_place_limit":args.per_place},ensure_ascii=False,indent=2))
 
