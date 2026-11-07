@@ -7,7 +7,11 @@ const required = [
   "map/styles.css",
   "worker/src/directory-catalog.js",
   "worker/src/payments/adapter.js",
-  "worker/migrations/0002_directory_catalog_payments.sql"
+  "worker/migrations/0002_directory_catalog_payments.sql",
+  "scripts/build_google_maps_directory.py",
+  "scripts/build_product_catalog.py",
+  "scripts/build_store_catalog_suggestions.py",
+  "scripts/compress_product_images.py"
 ];
 for (const path of required) assert.ok(fs.existsSync(path), "Missing required platform file: " + path);
 
