@@ -9,6 +9,8 @@ from openpyxl import load_workbook
 UNIQUE_SHEET = "الأسماء الفريدة الموحدة 7015"
 RAW_SHEET = "جميع السجلات الخام 16441"
 HEADER_ROW = 4
+EXPECTED_UNIQUE_ROWS = 7015
+EXPECTED_RAW_ROWS = 16441
 BBOX = {"south": 13.7, "north": 14.3, "west": 43.7, "east": 44.5}
 PLACE_RE = re.compile(r"(ChI[A-Za-z0-9_-]{10,})")
 EMPTY = {"", "غير مدرج", "غير محدد", "nan", "none", "null"}
@@ -43,7 +45,7 @@ def convert(source: Path, out: Path, chunk_size=500):
         raise ValueError("Expected unique and raw source sheets are missing")
     unique = read_rows(wb[UNIQUE_SHEET])
     raw = read_rows(wb[RAW_SHEET])
-    if len(unique) != 7015 or len(raw) != 16441:
+    if len(unique) != EXPECTED_UNIQUE_ROWS or len(raw) != EXPECTED_RAW_ROWS:
         raise ValueError(f"Unexpected source counts: unique={len(unique)}, raw={len(raw)}")
     records, ids, names = [], set(), Counter()
     inside = outside = phones = maps_urls = 0
