@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceWorkbook": "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx",
+  "uniqueSheetRecords": 7015,
+  "rawSheetRecordsAuditedButNotExported": 16441,
+  "rawSheetRecordsImported": 0,
+  "uniquePlaceIds": 7015,
+  "uniqueNames": 6892,
+  "duplicateNameRows": 123,
+  "recordsWithinApproxIbbBbox": 4980,
+  "recordsOutsideApproxIbbBboxQuarantinedFromMap": 2035,
+  "recordsWithPhone": 4011,
+  "recordsWithGoogleMapsUrl": 0,
+  "recordsPublished": 0,
+  "verificationStatus": "UNVERIFIED",
+  "visibilityStatus": "NEEDS_REVIEW",
+  "approximateIbbBbox": {
+    "south": 13.7,
+    "north": 14.3,
+    "west": 43.7,
+    "east": 44.5
+  }
+}
