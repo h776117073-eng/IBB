@@ -28,10 +28,10 @@ export function clusterStep(zoom) {
 export function classifyEntityKind(name, category) {
   const text = normalizeText(String(name || "") + " " + String(category || ""));
   if (/(شارع|طريق|جسر|نفق|دوار|تقاطع|جولة|ميدان)/.test(text)) return "STREET";
-  if (/(حارة|حي\\s|منطقة سكنية|قرية|عزلة|محلة)/.test(text)) return "NEIGHBORHOOD";
+  if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة)/.test(text)) return "NEIGHBORHOOD";
   if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|سوق|قلعة|حصن|أثر|مدرسة تاريخية)/.test(text)) return "LANDMARK";
-  if (/(مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام)/.test(text)) return "PUBLIC_SERVICE";
-  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|سوق|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات)/.test(text)) return "BUSINESS";
+  if (/(مكتبة عامة|مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام)/.test(text)) return "PUBLIC_SERVICE";
+  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|مكتبة|ملابس|جوالات|إلكترونيات)/.test(text)) return "BUSINESS";
   return "OTHER";
 }
 
