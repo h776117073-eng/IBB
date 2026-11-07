@@ -18,6 +18,7 @@ const marketHtml = fs.readFileSync("market/index.html", "utf8");
 const marketApp = fs.readFileSync("market/app.js", "utf8");
 const worker = fs.readFileSync("worker/src/index.js", "utf8");
 const directory = fs.readFileSync("worker/src/directory-catalog.js", "utf8");
+const payments = fs.readFileSync("worker/src/payments/adapter.js", "utf8");
 const migration = fs.readFileSync("worker/migrations/0002_directory_catalog_payments.sql", "utf8");
 
 assert.match(mapHtml, /id="map"/);
@@ -30,7 +31,7 @@ assert.match(marketApp, /catalog-suggestions/);
 assert.match(marketApp, /ليست مخزونًا أو توفرًا مؤكدًا/);
 assert.match(worker, /handleDirectoryCatalog/);
 assert.match(directory, /verification_status='VERIFIED_MATCH'/);
-assert.match(directory, /PAYMENT_PROVIDER/);
+assert.match(payments, /PAYMENT_PROVIDER_CODE/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS directory_places/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS catalog_products/);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS payment_intents/);
