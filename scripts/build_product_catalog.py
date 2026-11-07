@@ -125,11 +125,11 @@ def main():
                 image_queue.append({"barcode":code,"drive_file_id":str(image.get("file_id") or ""),"filename":str(image.get("filename") or ""),"source_url":image_url,"target_key":"products/"+code+".webp","target_format":"webp"})
             if not translated or not has_image or category_ar=="غير مصنف":
                 review.append({"barcode":code,"name_source":name_source,"name_ar":name_ar,"category_source":category_source,"country_relevance":record["country_relevance"],"translated":translated,"image_available":has_image,"review_reason":";".join(x for x,ok in [("needs_translation",not translated),("missing_image",not has_image),("unclassified_category",category_ar=="غير مصنف")] if ok)})
-    with open(out/"catalog_products.jsonl","w",encoding="utf-8") as f:
+    with gzip.open(out/"catalog_products.jsonl.gz","wt",encoding="utf-8") as f:
         for row in all_rows:f.write(json.dumps(row,ensure_ascii=False)+"\n")
-    with open(out/"product_image_import_queue.jsonl","w",encoding="utf-8") as f:
+    with gzip.open(out/"product_image_import_queue.jsonl.gz","wt",encoding="utf-8") as f:
         for row in image_queue:f.write(json.dumps(row,ensure_ascii=False)+"\n")
-    with open(out/"catalog_review_queue.csv","w",encoding="utf-8-sig",newline="") as f:
+    with gzip.open(out/"catalog_review_queue.csv.gz","wt",encoding="utf-8-sig",newline="") as f:
         writer=csv.DictWriter(f,fieldnames=["barcode","name_source","name_ar","category_source","country_relevance","translated","image_available","review_reason"])
         writer.writeheader();writer.writerows(review)
     summary={
