@@ -5,6 +5,7 @@ on:
     branches:
       - feature/ibb-directory-map-product-catalog-2026-11-07
       - integration/ibb-market-full-platform-2026-11-07
+      - feature/ibb-maps-workbook-staging-2026-11-08
     paths:
       - "index.html"
       - "map/**"
@@ -13,13 +14,16 @@ on:
       - "scripts/**"
       - ".github/workflows/ibb-platform-validation.yml"
   pull_request:
-    branches: [main, integration/ibb-market-full-platform-2026-11-07]
+    branches: [main, integration/ibb-market-full-platform-2026-11-07, feature/ibb-directory-map-product-catalog-2026-11-07]
     paths:
       - "index.html"
       - "map/**"
       - "market/**"
       - "worker/**"
       - "scripts/validate_platform.mjs"
+      - "scripts/stage_google_maps_workbook.py"
+      - "scripts/tests/**"
+      - "requirements-ibb-enrichment.txt"
   workflow_dispatch:
 
 permissions:
@@ -46,6 +50,8 @@ jobs:
         run: npm test
       - name: Validate map and marketplace integration
         run: node scripts/validate_platform.mjs
+      - name: Install Python data dependencies
+        run: python -m pip install -r requirements-ibb-enrichment.txt
       - name: Run Python data builder tests
         run: python -m unittest discover -s scripts/tests -v
       - name: Compile data builder scripts
