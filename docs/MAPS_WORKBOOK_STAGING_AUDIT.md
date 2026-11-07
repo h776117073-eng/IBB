@@ -1,7 +1,24 @@
-# Google Maps workbook staging audit
+# تدقيق واستيعاب مصنف سجل خرائط Google
 
-The source workbook contains 7,015 rows in the normalized candidate sheet and 16,441 rows in the raw sheet. Only the normalized sheet is eligible for staging. The raw sheet is excluded.
+- ورقة الأسماء الموحدة: **7,015** سجلًا.
+- الورقة الخام: **16,441** سجلًا؛ تم عدّها فقط ولم تُصدّر أو تُستورد.
+- Place IDs: **7,015** فريدة.
+- الأسماء النصية الفريدة: **6,892**؛ يوجد **123** صفًا باسم مكرر ولم يتم دمجها.
+- الإحداثيات داخل الصندوق التقريبي لإب: **4,980**.
+- الإحداثيات خارج الصندوق: **2,035**؛ أُخفيت من إحداثيات API العامة.
+- أرقام هواتف ذات قيمة: **4,011**.
+- روابط Google Maps المباشرة داخل المصنف: **0**.
 
-All staged candidates remain `UNVERIFIED` and `NEEDS_REVIEW`; no record is published or promoted to `VERIFIED_MATCH` by this process. 2,035 coordinates outside the approximate Ibb city bounding box are quarantined from public map coordinates pending review. Direct Google Maps URLs are absent in the source workbook.
+## حالة GitHub
+- حُفظت السجلات كلها في 71 ملفًا مضغوطًا داخل `data/staging/google-maps-workbook/`.
+- طلب الدمج #7 دُمج في فرع تطوير الخريطة، ولم يُدمج في `main`.
+- آخر تحقق شامل للبيانات: GitHub Actions run `42423060803` نجح، وفك ضغط 71 ملفًا وفحص 7,015 سجلًا.
 
-See the staging manifest and converter for reproducible details. This audit is not evidence that every row has been independently checked against a live Google Maps listing.
+## حالة قاعدة البيانات
+- قبل الاستيراد: 3,986 سجلًا قديمًا منشورًا.
+- أُضيفت 69 منشأة جديدة من هذا المصنف إلى `directory_places`.
+- جميع الـ69 تحمل `UNVERIFIED` و`NEEDS_REVIEW` و`is_public=0`؛ لم يُنشر أي منها.
+- أوقف Cloudflare بقية الكتابة بسبب بلوغ حد الكتابة اليومي للخطة المجانية. تم إنشاء مهمة استكمال لمرة واحدة بعد إعادة الضبط في 8 نوفمبر 2026 الساعة 03:15 بتوقيت اليمن.
+
+## قواعد الأمان
+لا يُحوّل أي سجل إلى `VERIFIED_MATCH` ولا إلى `PUBLISHED` تلقائيًا. Place ID أو إدراج السجل في المصنف لا يثبت مراجعة مستقلة. الصندوق الجغرافي تقريبي وليس حدًا إداريًا رسميًا. لا تُعدّل السجلات القديمة ولا تُنشر المرشحات قبل المراجعة.
