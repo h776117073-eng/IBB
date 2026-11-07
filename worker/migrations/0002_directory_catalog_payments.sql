@@ -7,11 +7,20 @@ CREATE TABLE IF NOT EXISTS directory_places (
   kind TEXT NOT NULL CHECK(kind IN ('BUSINESS','LANDMARK','STREET','NEIGHBORHOOD','PUBLIC_SERVICE','OTHER')),
   category TEXT NOT NULL DEFAULT '',
   category_norm TEXT NOT NULL DEFAULT '',
+  source_category TEXT NOT NULL DEFAULT '',
   address TEXT NOT NULL DEFAULT '',
   address_norm TEXT NOT NULL DEFAULT '',
   district TEXT NOT NULL DEFAULT '',
   neighborhood TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  website_url TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  cover_image_url TEXT NOT NULL DEFAULT '',
+  opening_hours_json TEXT NOT NULL DEFAULT '{}',
+  rating REAL,
+  review_count INTEGER NOT NULL DEFAULT 0 CHECK(review_count >= 0),
+  operational_status TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK(operational_status IN ('OPEN','CLOSED','TEMPORARILY_CLOSED','UNKNOWN')),
   latitude REAL,
   longitude REAL,
   geometry_type TEXT NOT NULL DEFAULT 'POINT' CHECK(geometry_type IN ('POINT','LINESTRING','MULTILINESTRING','POLYGON','MULTIPOLYGON')),
@@ -24,7 +33,11 @@ CREATE TABLE IF NOT EXISTS directory_places (
   is_commercial INTEGER NOT NULL DEFAULT 0 CHECK(is_commercial IN (0,1)),
   is_public INTEGER NOT NULL DEFAULT 1 CHECK(is_public IN (0,1)),
   place_id TEXT NOT NULL DEFAULT '',
+  plus_code TEXT NOT NULL DEFAULT '',
+  osm_source_id TEXT NOT NULL DEFAULT '',
   maps_url TEXT NOT NULL DEFAULT '',
+  source_name TEXT NOT NULL DEFAULT '',
+  source_status TEXT NOT NULL DEFAULT '',
   source_url TEXT NOT NULL DEFAULT '',
   source_hash TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
@@ -32,11 +45,13 @@ CREATE TABLE IF NOT EXISTS directory_places (
   UNIQUE(source_file,source_record_id),
   CHECK((latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)),
   CHECK(latitude IS NULL OR latitude BETWEEN -90 AND 90),
-  CHECK(longitude IS NULL OR longitude BETWEEN -180 AND 180)
+  CHECK(longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  CHECK(rating IS NULL OR rating BETWEEN 0 AND 5)
 );
 CREATE INDEX IF NOT EXISTS idx_directory_places_public_geo ON directory_places(visibility_status,verification_status,latitude,longitude);
 CREATE INDEX IF NOT EXISTS idx_directory_places_kind_category ON directory_places(kind,category_norm,visibility_status);
 CREATE INDEX IF NOT EXISTS idx_directory_places_name ON directory_places(name_norm);
+CREATE INDEX IF NOT EXISTS idx_directory_places_place_id ON directory_places(place_id);
 
 CREATE TABLE IF NOT EXISTS catalog_products (
   barcode TEXT PRIMARY KEY,
@@ -48,8 +63,14 @@ CREATE TABLE IF NOT EXISTS catalog_products (
   category_ar TEXT NOT NULL DEFAULT '',
   description_ar TEXT NOT NULL DEFAULT '',
   image_key TEXT NOT NULL DEFAULT '',
+  image_source_url TEXT NOT NULL DEFAULT '',
+  image_drive_file_id TEXT NOT NULL DEFAULT '',
   image_status TEXT NOT NULL DEFAULT 'MISSING' CHECK(image_status IN ('MISSING','PENDING','READY','FAILED')),
   quality_status TEXT NOT NULL DEFAULT 'CANDIDATE' CHECK(quality_status IN ('CANDIDATE','PUBLISHED','REJECTED')),
+  translation_status TEXT NOT NULL DEFAULT 'NEEDS_TRANSLATION' CHECK(translation_status IN ('SOURCE_ARABIC','MODEL_TRANSLATED','REVIEWED','NEEDS_TRANSLATION')),
+  availability_status TEXT NOT NULL DEFAULT 'REFERENCE_ONLY' CHECK(availability_status IN ('REFERENCE_ONLY','LOCAL_VERIFIED','MERCHANT_CONFIRMED')),
+  country_relevance TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK(country_relevance IN ('YEMEN','ARABIC_REGION','UNKNOWN','FOREIGN')),
+  countries_source TEXT NOT NULL DEFAULT '',
   source_name TEXT NOT NULL DEFAULT 'Open Food Facts',
   source_url TEXT NOT NULL DEFAULT '',
   country_code TEXT NOT NULL DEFAULT '',
@@ -58,6 +79,7 @@ CREATE TABLE IF NOT EXISTS catalog_products (
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_products_published_category ON catalog_products(quality_status,category_ar,name_ar);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_brand ON catalog_products(brand_ar);
+CREATE INDEX IF NOT EXISTS idx_catalog_products_availability ON catalog_products(availability_status,quality_status);
 
 CREATE TABLE IF NOT EXISTS store_catalog_suggestions (
   id TEXT PRIMARY KEY,
@@ -71,6 +93,19 @@ CREATE TABLE IF NOT EXISTS store_catalog_suggestions (
   UNIQUE(store_id,barcode)
 );
 CREATE INDEX IF NOT EXISTS idx_store_catalog_suggestions_store ON store_catalog_suggestions(store_id,status,match_score DESC);
+
+CREATE TABLE IF NOT EXISTS directory_catalog_suggestions (
+  id TEXT PRIMARY KEY,
+  directory_place_id TEXT NOT NULL REFERENCES directory_places(id) ON DELETE CASCADE,
+  barcode TEXT NOT NULL REFERENCES catalog_products(barcode) ON DELETE CASCADE,
+  match_score REAL NOT NULL CHECK(match_score BETWEEN 0 AND 1),
+  match_reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'SUGGESTED' CHECK(status IN ('SUGGESTED','MERCHANT_CONFIRMED','REJECTED')),
+  created_at TEXT NOT NULL,
+  reviewed_at TEXT,
+  UNIQUE(directory_place_id,barcode)
+);
+CREATE INDEX IF NOT EXISTS idx_directory_catalog_suggestions_place ON directory_catalog_suggestions(directory_place_id,status,match_score DESC);
 
 CREATE TABLE IF NOT EXISTS payment_provider_configs (
   provider_code TEXT PRIMARY KEY,
