@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseBbox, clusterStep, classifyEntityKind } from "../src/directory-catalog.js";
+import { parseBbox, clusterStep, classifyEntityKind, validateGoogleMapsArchiveCandidate } from "../src/directory-catalog.js";
 
 test("map bounding box accepts a valid Ibb viewport", () => {
   assert.deepEqual(parseBbox("44.05,13.82,44.32,14.08"), {
@@ -26,4 +26,52 @@ test("Arabic map entity classifier distinguishes streets, neighborhoods and plac
   assert.equal(classifyEntityKind("الجامع الكبير", ""), "LANDMARK");
   assert.equal(classifyEntityKind("مستشفى الثورة", ""), "PUBLIC_SERVICE");
   assert.equal(classifyEntityKind("صيدلية الشفاء", ""), "BUSINESS");
+});
+
+
+function safeArchiveCandidate(overrides = {}) {
+  return {
+    id: "gmaps-0123456789abcdef01234567",
+    source_file: "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx",
+    source_record_id: "unique-sheet-row-1",
+    name: "صيدلية الشفاء",
+    name_norm: "صيدلية الشفاء",
+    kind: "BUSINESS",
+    category: "صيدلية",
+    operational_status: "UNKNOWN",
+    latitude: 13.975,
+    longitude: 44.178,
+    geometry_type: "POINT",
+    location_precision: "APPROXIMATE",
+    identity_status: "UNVERIFIED",
+    location_status: "APPROXIMATE",
+    verification_status: "UNVERIFIED",
+    visibility_status: "NEEDS_REVIEW",
+    is_commercial: 1,
+    is_public: 0,
+    place_id: "ChIJAbcdefghijklmnop",
+    source_name: "GOOGLE_MAPS_ARCHIVE_WORKBOOK",
+    source_status: "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED",
+    source_hash: "a".repeat(64),
+    ...overrides
+  };
+}
+
+test("Google Maps archive candidates pass only with the restricted review state", () => {
+  assert.deepEqual(validateGoogleMapsArchiveCandidate(safeArchiveCandidate()), { ok: true, sequence: 1 });
+});
+
+test("Google Maps archive importer rejects other sources and unsafe publication states", () => {
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_name: "RAW_16441" })).ok, false);
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ verification_status: "VERIFIED_MATCH" })).ok, false);
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ visibility_status: "PUBLISHED", is_public: 1 })).ok, false);
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ is_public: 1 })).ok, false);
+});
+
+test("Google Maps archive importer rejects unquarantined or invalid coordinates", () => {
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({
+    location_status: "MISSING", location_precision: "MISSING", latitude: 13.975, longitude: 44.178
+  })).ok, false);
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ latitude: 15.0 })).ok, false);
+  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_record_id: "unique-sheet-row-7016" })).ok, false);
 });
