@@ -13,7 +13,7 @@ def candidate(overrides=None):
     place_id = "ChIJAbcdefghijklmnop"
     row = {
         "id": "gmaps-" + hashlib.sha256(place_id.encode("utf-8")).hexdigest()[:24],
-        "source_file": "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx",
+        "source_file": importer.EXPECTED_STAGED_ROW_FILE,
         "source_record_id": "unique-sheet-row-1",
         "name": "صيدلية الشفاء",
         "kind": "BUSINESS",
