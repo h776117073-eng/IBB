@@ -12,7 +12,7 @@
 
 ## 2. المصدر الحالي: D1
 
-المرجع التنفيذي الذي يجب الحفاظ على سلوكه هو `worker/migrations/0001_shared_directory.sql` مع `worker/src/index.js`.
+المصدر التنفيذي الكامل في الفرع الحالي هو `worker/migrations/0001_shared_directory.sql` و`worker/migrations/0002_directory_catalog_payments.sql` مع `worker/src/index.js` و`worker/src/directory-catalog.js` و`worker/src/payments/adapter.js`.
 
 | كيان D1 | دوره الحالي |
 |---|---|
@@ -21,6 +21,13 @@
 | submissions | صندوق المساهمات: STORE/PRODUCT، مفتاح idempotency، payload، حالة المراجعة وسببها |
 | moderation_audit | سجل قرارات APPROVE/REJECT |
 | rate_limits | حواجز معدل المساهمات حسب بصمة IP مجزأة |
+| directory_places | دليل جغرافي عام لمتجر/معلم/شارع/حي/خدمة عامة، يتضمن المصدر والتحقق والظهور والهندسة |
+| catalog_products | كتالوج منتجات مرجعي عالمي مع barcode والترجمة وجودة البيانات والصورة |
+| store_catalog_suggestions | اقتراحات مطابقة منتجات الكتالوج بمتجر حقيقي |
+| directory_catalog_suggestions | اقتراحات مطابقة منتجات الكتالوج بمكان في الدليل الجغرافي |
+| payment_provider_configs | تعريف readiness/إعدادات مزود الدفع؛ لا يخزن أسرار المزود |
+| payment_intents | نوايا دفع مع YER وidempotency وحالة |
+| payment_events | أحداث مزود الدفع مع hash وتحقق التوقيع وسجل فريد للحدث |
 
 ## 3. نموذج IBB المقترح
 
@@ -135,3 +142,39 @@
 - لا ينشئ نظام دفع أو Escrow أو طلبات شراء.
 - لا يغيّر مخطط التجارة الحالي ولا يربط جداول العملاء/التجار تلقائيًا بسجلات الدليل.
 - لا يغير main أو إعدادات Cloudflare الإنتاجية.
+
+
+## 3.6 `ibb.directory_places` — دليل الأماكن والمواقع
+
+يستوعب الكيان أنواعًا مختلفة عن المتجر الذي يملكه تاجر:
+- المصدر: `source_file`, `source_record_id`, `source_name`, `source_status`, `source_url`, `source_hash`, `place_id`, `plus_code`, `osm_source_id`.
+- التعريف: `name`, `name_norm`, `kind`, `category`, `category_norm`, `source_category`.
+- العنوان والاتصال: `address`, `address_norm`, `district`, `neighborhood`, `phone`, `email`, `website_url`.
+- الوصف والتشغيل: `description`, `cover_image_url`, `opening_hours` JSONB، `rating`, `review_count`, `operational_status`.
+- الموقع: `latitude`, `longitude`, `location_precision`, `location_status`, `geometry` من نوع PostGIS عام SRID 4326 بعد تثبيت الامتداد، مع حفظ الشكل المتوافق مع GeoJSON في عقد API.
+- الثقة والنشر: `identity_status`, `verification_status`, `visibility_status`, `is_commercial`, `is_public`.
+- الهوية الفريدة للمصدر: unique على (`source_file`, `source_record_id`)، مع فحص تعارض Place ID.
+
+لا تُفرض هندسة Point على جميع السجلات؛ D1 يسمح POINT/LINESTRING/MULTILINESTRING/POLYGON/MULTIPOLYGON. اختبر استيراد وقراءة كل نوع قبل اختيار العمود المكاني النهائي. لا تستورد سجلات الأرشيف المؤجلة الآن.
+
+## 3.7 `ibb.catalog_products` — كتالوج مرجعي
+
+- مفتاح `barcode` نصي للحفاظ على الأصفار البادئة.
+- أسماء مصدر وعربية وعلامة وفئة ووصف.
+- `image_key`, حالة الصورة ومصدرها، حالة الترجمة والجودة.
+- `availability_status` يبدأ بــ `REFERENCE_ONLY`; لا تعرض أي كتالوج كتوفر محلي أو مخزون.
+- احتفظ بصلة صورة R2 الحالية؛ لا تنقل الصور إلى Supabase Storage تلقائيًا.
+
+## 3.8 اقتراحات الكتالوج
+
+- `ibb.store_catalog_suggestions`: FK إلى `ibb.stores` و`ibb.catalog_products`, unique (`store_id`, `barcode`), درجة مطابقة 0..1 وحالة `SUGGESTED/MERCHANT_CONFIRMED/REJECTED`.
+- `ibb.directory_catalog_suggestions`: FK إلى `ibb.directory_places` و`ibb.catalog_products`, unique (`directory_place_id`, `barcode`) بنفس حالات المراجعة.
+- `MERCHANT_CONFIRMED` لا يضبط إلا بعد تأكيد موثوق من صاحب المتجر/المراجع، ولا يتحول إلى stock أو sale price تلقائيًا.
+
+## 3.9 جداول الدفع المستقبلية
+
+D1 يحتوي `payment_provider_configs`, `payment_intents`, `payment_events`. يمكن توثيق هذه الكيانات للمرحلة اللاحقة فقط:
+- لا تُخزن provider secrets في قاعدة البيانات أو Git؛ تحفظ في Secrets.
+- لا تُنشئ endpoint intent/webhook/refund لمجرد وجود الجداول؛ adapter الحالي يعرض readiness ويثبت `checkout_enabled=false`.
+- لا تفعل الدفع إلا بعد اختيار مزود محلي واختبارات HMAC، replay/idempotency، refund، reconciliation، وحماية المبالغ بعملة YER.
+- لا تربط تلقائيًا `payment_intents` مع `public.orders`؛ اختلاف نموذج المرجع يجب حسمه أولًا.
