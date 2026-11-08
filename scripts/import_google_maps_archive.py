@@ -27,6 +27,7 @@ EXPECTED_RECORDS = 7015
 EXPECTED_RAW_RECORDS = 16441
 EXPECTED_SHARDS = 71
 EXPECTED_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK"
+EXPECTED_WORKBOOK = "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx"
 EXPECTED_SOURCE_STATUS = "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED"
 DEFAULT_API_BASE = "https://ibb-market-api.aicreativestudio.workers.dev"
 IMPORT_PATH = "/api/v1/admin/directory/archive-import"
@@ -41,6 +42,7 @@ def validate_manifest(manifest: dict) -> None:
         "recordsPublished": 0,
         "verificationStatus": "UNVERIFIED",
         "visibilityStatus": "NEEDS_REVIEW",
+        "sourceWorkbook": EXPECTED_WORKBOOK,
     }
     for key, expected in required.items():
         if manifest.get(key) != expected:
@@ -48,8 +50,8 @@ def validate_manifest(manifest: dict) -> None:
     chunks = manifest.get("chunks")
     if not isinstance(chunks, list) or len(chunks) != EXPECTED_SHARDS:
         raise ValueError(f"Expected exactly {EXPECTED_SHARDS} staged shards")
-    if not str(manifest.get("sourceWorkbook", "")).strip():
-        raise ValueError("Manifest does not identify its source workbook")
+    if manifest.get("sourceWorkbook") != EXPECTED_WORKBOOK:
+        raise ValueError("Manifest workbook is not the allowlisted source file")
 
 
 def validate_candidate(row: dict) -> int:
@@ -70,8 +72,8 @@ def validate_candidate(row: dict) -> int:
         raise ValueError("Candidate ID does not match its Place ID")
     if not re.fullmatch(r"[a-f0-9]{64}", str(row.get("source_hash", ""))):
         raise ValueError("Invalid source hash")
-    if not str(row.get("source_file", "")).strip() or not str(row.get("name", "")).strip():
-        raise ValueError("Source file and business name are required")
+    if row.get("source_file") != EXPECTED_WORKBOOK or not str(row.get("name", "")).strip():
+        raise ValueError("Candidate source file is not the allowlisted workbook")
 
     fixed = {
         "source_name": EXPECTED_SOURCE,
