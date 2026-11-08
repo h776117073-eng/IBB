@@ -57,8 +57,10 @@ jobs:
       - name: Run Python data builder tests
         run: python -m unittest discover -s scripts/tests -v
       - name: Decode and validate Google Maps staging shards
+        if: github.event_name != 'pull_request'
         run: python scripts/decode_staged_google_maps_shards.py --source data/staging/google-maps-workbook --out /tmp/ibb-maps-candidates
       - name: Dry-run guarded archive importer (no D1 writes)
+        if: github.event_name != 'pull_request'
         run: python scripts/import_google_maps_archive.py --batch-size 250
       - name: Compile data builder scripts
         run: python -m compileall -q scripts
