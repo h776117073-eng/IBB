@@ -48,10 +48,14 @@ class GoogleMapsArchiveImportTests(unittest.TestCase):
             "verificationStatus": "UNVERIFIED",
             "visibilityStatus": "NEEDS_REVIEW",
             "chunks": [f"maps-candidates-{i:03}.json" for i in range(1, 72)],
-            "sourceWorkbook": "source.xlsx",
+            "sourceWorkbook": importer.EXPECTED_WORKBOOK,
         }
         importer.validate_manifest(manifest)
         manifest["rawSheetRecordsImported"] = 1
+        with self.assertRaises(ValueError):
+            importer.validate_manifest(manifest)
+        manifest["rawSheetRecordsImported"] = 0
+        manifest["sourceWorkbook"] = "another-file.xlsx"
         with self.assertRaises(ValueError):
             importer.validate_manifest(manifest)
 
@@ -63,6 +67,7 @@ class GoogleMapsArchiveImportTests(unittest.TestCase):
             {"visibility_status": "PUBLISHED", "is_public": 1},
             {"is_public": 1},
             {"identity_status": "VERIFIED_MATCH"},
+            {"source_file": "another-file.xlsx"},
         ):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 importer.validate_candidate(candidate(bad))
