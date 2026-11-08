@@ -314,6 +314,59 @@ const GOOGLE_MAPS_ARCHIVE_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK";
 const GOOGLE_MAPS_ARCHIVE_FILE = "verified_ibb_registry.xlsx";
 const GOOGLE_MAPS_ARCHIVE_ROWS = 7015;
 
+export function classifyGoogleMapsArchiveConflicts(rows, existingRows) {
+  const byId = new Map();
+  const bySourceRow = new Map();
+  for (const existing of existingRows || []) {
+    byId.set(existing.id, existing);
+    bySourceRow.set(existing.source_file + "\u0000" + existing.source_record_id, existing);
+  }
+
+  const seenIds = new Set();
+  const seenPlaceIds = new Set();
+  const seenSourceRows = new Set();
+  const newRows = [];
+  const conflicts = [];
+  let skippedExisting = 0;
+  let skippedChangedSourceHash = 0;
+
+  for (const row of rows) {
+    const sourceKey = row.source_file + "\u0000" + row.source_record_id;
+    if (seenIds.has(row.id) || seenPlaceIds.has(row.place_id) || seenSourceRows.has(sourceKey)) {
+      conflicts.push({ id: row.id, source_record_id: row.source_record_id, reason: "DUPLICATE_WITHIN_REQUEST" });
+      continue;
+    }
+    seenIds.add(row.id);
+    seenPlaceIds.add(row.place_id);
+    seenSourceRows.add(sourceKey);
+
+    const idMatch = byId.get(row.id);
+    const sourceMatch = bySourceRow.get(sourceKey);
+    if (idMatch && sourceMatch) {
+      if (idMatch.id !== sourceMatch.id || idMatch.place_id !== row.place_id || sourceMatch.place_id !== row.place_id) {
+        conflicts.push({ id: row.id, source_record_id: row.source_record_id, reason: "EXISTING_ID_AND_SOURCE_ROW_DISAGREE" });
+        continue;
+      }
+      skippedExisting += 1;
+      if (String(idMatch.source_hash || "") !== String(row.source_hash || "")) skippedChangedSourceHash += 1;
+      continue;
+    }
+    if (idMatch) {
+      conflicts.push({ id: row.id, source_record_id: row.source_record_id, reason: "PLACE_ID_ALREADY_LINKED_TO_DIFFERENT_SOURCE_ROW" });
+      continue;
+    }
+    if (sourceMatch) {
+      conflicts.push({ id: row.id, source_record_id: row.source_record_id, reason: "SOURCE_ROW_ALREADY_LINKED_TO_DIFFERENT_PLACE" });
+      continue;
+    }
+    newRows.push(row);
+  }
+
+  return conflicts.length
+    ? { ok: false, conflicts: conflicts.slice(0, 10) }
+    : { ok: true, newRows, skippedExisting, skippedChangedSourceHash };
+}
+
 export async function validateGoogleMapsArchiveCandidate(x) {
   const fail = (reason) => ({ ok: false, reason });
   if (!x || typeof x !== "object" || Array.isArray(x)) return fail("RECORD_MUST_BE_OBJECT");
@@ -441,16 +494,50 @@ async function importRows(req, env, origin, type) {
   }
   if (!rows.length) return jsonResponse({ok:true,imported:0,table},200,origin);
   const archiveInsertOnly = type === "directory_archive";
+  let rowsToInsert = rows;
+  let archivePlan = null;
+  if (archiveInsertOnly) {
+    try {
+      const idPlaceholders = rows.map(() => "?").join(",");
+      const sourcePlaceholders = rows.map(() => "?").join(",");
+      const existingResult = await env.DB.prepare(
+        "SELECT id,source_file,source_record_id,place_id,source_hash FROM directory_places " +
+        "WHERE id IN (" + idPlaceholders + ") OR (source_file=? AND source_record_id IN (" + sourcePlaceholders + "))"
+      ).bind(...rows.map((row) => row.id), GOOGLE_MAPS_ARCHIVE_FILE, ...rows.map((row) => row.source_record_id)).all();
+      archivePlan = classifyGoogleMapsArchiveConflicts(rows, existingResult.results || []);
+      if (!archivePlan.ok) return jsonResponse({
+        ok:false,error:"ARCHIVE_SOURCE_CONFLICT",conflicts:archivePlan.conflicts,
+        message:"Existing directory rows do not match the incoming Place ID and source-row identity. No rows in this batch were written."
+      },409,origin);
+      rowsToInsert = archivePlan.newRows;
+      if (!rowsToInsert.length) return jsonResponse({
+        ok:true,table,attempted:rows.length,imported:0,skipped:rows.length,
+        skipped_existing:archivePlan.skippedExisting,
+        skipped_changed_source_hash:archivePlan.skippedChangedSourceHash,
+        conflict_policy:"INSERT_ONLY"
+      },200,origin);
+    } catch (error) {
+      return jsonResponse({ok:false,error:"ARCHIVE_PREFLIGHT_FAILED",detail:textValue(error && error.message,300)},500,origin);
+    }
+  }
   const updates = columns.filter((x) => x !== conflictKey && x !== "created_at").map((x) => x+"=excluded."+x).join(",");
   const sql = archiveInsertOnly
     ? "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT DO NOTHING"
     : "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT("+conflictKey+") DO UPDATE SET "+updates;
   try {
-    const statements = rows.map((row) => env.DB.prepare(sql).bind(...columns.map((key) => row[key] === undefined ? null : row[key])));
+    const statements = rowsToInsert.map((row) => env.DB.prepare(sql).bind(...columns.map((key) => row[key] === undefined ? null : row[key])));
     const results = await env.DB.batch(statements);
     if (archiveInsertOnly) {
       const inserted = (results || []).reduce((sum, result) => sum + Number(result?.meta?.changes || 0), 0);
-      return jsonResponse({ok:true,table,attempted:rows.length,imported:inserted,skipped:rows.length-inserted,conflict_policy:"INSERT_ONLY",first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]},200,origin);
+      const skipped = archivePlan.skippedExisting + (rowsToInsert.length - inserted);
+      return jsonResponse({
+        ok:true,table,attempted:rows.length,imported:inserted,skipped,
+        skipped_existing:archivePlan.skippedExisting,
+        skipped_changed_source_hash:archivePlan.skippedChangedSourceHash,
+        skipped_write_race:rowsToInsert.length-inserted,
+        conflict_policy:"INSERT_ONLY",
+        first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]
+      },200,origin);
     }
     return jsonResponse({ok:true,table,imported:rows.length,first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]},200,origin);
   } catch (error) {
