@@ -310,14 +310,48 @@ function numericValue(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+const GOOGLE_MAPS_ARCHIVE_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK";
+const GOOGLE_MAPS_ARCHIVE_ROWS = 7015;
+
+export function validateGoogleMapsArchiveCandidate(x) {
+  const fail = (reason) => ({ ok: false, reason });
+  if (!x || typeof x !== "object" || Array.isArray(x)) return fail("RECORD_MUST_BE_OBJECT");
+  const record = /^unique-sheet-row-(\\d+)$/.exec(String(x.source_record_id || ""));
+  const sequence = record ? Number(record[1]) : 0;
+  if (!Number.isInteger(sequence) || sequence < 1 || sequence > GOOGLE_MAPS_ARCHIVE_ROWS) return fail("INVALID_SOURCE_ROW");
+  if (!/^gmaps-[a-f0-9]{24}$/.test(String(x.id || ""))) return fail("INVALID_ARCHIVE_ID");
+  if (!/^ChI[A-Za-z0-9_-]{10,}$/.test(String(x.place_id || ""))) return fail("INVALID_PLACE_ID");
+  if (!/^[a-f0-9]{64}$/.test(String(x.source_hash || ""))) return fail("INVALID_SOURCE_HASH");
+  if (!String(x.source_file || "").trim() || !String(x.name || "").trim()) return fail("SOURCE_FILE_AND_NAME_REQUIRED");
+  if (x.source_name !== GOOGLE_MAPS_ARCHIVE_SOURCE ||
+      x.source_status !== "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED") return fail("SOURCE_NOT_ALLOWLISTED");
+  if (x.identity_status !== "UNVERIFIED" ||
+      x.verification_status !== "UNVERIFIED" ||
+      x.visibility_status !== "NEEDS_REVIEW" ||
+      !(x.is_public === 0 || x.is_public === false) ||
+      !(x.is_commercial === 1 || x.is_commercial === true)) return fail("UNSAFE_REVIEW_STATE");
+  if (x.kind !== "BUSINESS" || x.operational_status !== "UNKNOWN" || x.geometry_type !== "POINT") return fail("INVALID_ARCHIVE_KIND_OR_STATUS");
+
+  const lat = numericValue(x.latitude), lon = numericValue(x.longitude);
+  if (x.location_status === "MISSING") {
+    if (x.location_precision !== "MISSING" || lat !== null || lon !== null) return fail("MISSING_LOCATION_MUST_HAVE_NULL_COORDINATES");
+  } else if (x.location_status === "APPROXIMATE") {
+    if (x.location_precision !== "APPROXIMATE" || lat === null || lon === null ||
+        lat < 13.7 || lat > 14.3 || lon < 43.7 || lon > 44.5) return fail("APPROXIMATE_LOCATION_OUT_OF_BOUNDS");
+  } else {
+    return fail("INVALID_LOCATION_STATUS");
+  }
+  return { ok: true, sequence };
+}
+
 async function importRows(req, env, origin, type) {
   if (!authorizedImport(req, env)) return jsonResponse({ ok: false, error: "UNAUTHORIZED" }, 401, origin);
-  const maxItems = type === "directory" ? 250 : type === "products" ? 250 : 500;
+  const maxItems = (type === "directory" || type === "directory_archive" || type === "products") ? 250 : 500;
   const parsed = await readImportItems(req, maxItems);
   if (parsed.error) return jsonResponse({ ok: false, error: parsed.error, max_items: parsed.max_items }, parsed.status, origin);
   const now = new Date().toISOString();
   let columns, rows, table, conflictKey, updateFields;
-  if (type === "directory") {
+  if (type === "directory" || type === "directory_archive") {
     table = "directory_places";
     columns = ["id","source_file","source_record_id","name","name_norm","kind","category","category_norm","source_category","address","address_norm","district","neighborhood","phone","email","website_url","description","cover_image_url","opening_hours_json","rating","review_count","operational_status","latitude","longitude","geometry_type","geometry_json","location_precision","identity_status","location_status","verification_status","visibility_status","is_commercial","is_public","place_id","plus_code","osm_source_id","maps_url","source_name","source_status","source_url","source_hash","created_at","updated_at"];
     const allowedKinds = new Set(["BUSINESS","LANDMARK","STREET","NEIGHBORHOOD","PUBLIC_SERVICE","OTHER"]);
@@ -334,6 +368,10 @@ async function importRows(req, env, origin, type) {
       }
       if (visibility === "PUBLISHED" && (verification !== "VERIFIED_MATCH" || lat === null || lon === null || lat < -90 || lat > 90 || lon < -180 || lon > 180)) {
         return jsonResponse({ ok:false,error:"PUBLISHED_PLACE_REQUIRES_VERIFIED_COORDINATES",record_id:textValue(x.id,128) },400,origin);
+      }
+      if (type === "directory_archive") {
+        const archiveCheck = validateGoogleMapsArchiveCandidate(x);
+        if (!archiveCheck.ok) return jsonResponse({ok:false,error:"UNSAFE_GOOGLE_MAPS_ARCHIVE_RECORD",reason:archiveCheck.reason,record_id:textValue(x.id,128)},400,origin);
       }
       const precision = textValue(x.location_precision,24);
       const operational = textValue(x.operational_status,32);
@@ -398,11 +436,18 @@ async function importRows(req, env, origin, type) {
     conflictKey = "id";
   }
   if (!rows.length) return jsonResponse({ok:true,imported:0,table},200,origin);
+  const archiveInsertOnly = type === "directory_archive";
   const updates = columns.filter((x) => x !== conflictKey && x !== "created_at").map((x) => x+"=excluded."+x).join(",");
-  const sql = "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT("+conflictKey+") DO UPDATE SET "+updates;
+  const sql = archiveInsertOnly
+    ? "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT DO NOTHING"
+    : "INSERT INTO "+table+" ("+columns.join(",")+") VALUES ("+columns.map(()=>"?").join(",")+") ON CONFLICT("+conflictKey+") DO UPDATE SET "+updates;
   try {
     const statements = rows.map((row) => env.DB.prepare(sql).bind(...columns.map((key) => row[key] === undefined ? null : row[key])));
-    await env.DB.batch(statements);
+    const results = await env.DB.batch(statements);
+    if (archiveInsertOnly) {
+      const inserted = (results || []).reduce((sum, result) => sum + Number(result?.meta?.changes || 0), 0);
+      return jsonResponse({ok:true,table,attempted:rows.length,imported:inserted,skipped:rows.length-inserted,conflict_policy:"INSERT_ONLY",first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]},200,origin);
+    }
     return jsonResponse({ok:true,table,imported:rows.length,first_id:rows[0][conflictKey],last_id:rows[rows.length-1][conflictKey]},200,origin);
   } catch (error) {
     return jsonResponse({ok:false,error:"DB_IMPORT_FAILED",detail:textValue(error && error.message,500),table},500,origin);
@@ -435,6 +480,7 @@ export async function handleDirectoryCatalog(req, env, url, origin) {
     return importStats(env, origin);
   }
   if (req.method === "POST" && url.pathname === "/api/v1/admin/directory/import") return importRows(req, env, origin, "directory");
+  if (req.method === "POST" && url.pathname === "/api/v1/admin/directory/archive-import") return importRows(req, env, origin, "directory_archive");
   if (req.method === "POST" && url.pathname === "/api/v1/admin/catalog/import") return importRows(req, env, origin, "products");
   if (req.method === "POST" && url.pathname === "/api/v1/admin/directory-catalog-suggestions/import") return importRows(req, env, origin, "suggestions");
   if (req.method === "GET" && url.pathname === "/api/v1/map/places") return listMapPlaces(url, env, origin);
