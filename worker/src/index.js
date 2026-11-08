@@ -25,6 +25,61 @@ async function listProducts(u,e){const q=norm(u.searchParams.get("q")||"").slice
 async function doReview(req,e,id){if(!isAdmin(req,e))return {status:401,data:{ok:false,error:"UNAUTHORIZED"}};if(!/^[0-9a-f-]{36}$/i.test(id))return {status:400,data:{ok:false,error:"INVALID_ID"}};const b=await read(req),decision=String(b.decision||"").toUpperCase(),reason=field(b.reason,"سبب المراجعة",300,false);if(!["APPROVE","REJECT"].includes(decision))throw new InputError("قرار المراجعة غير صالح");const item=await e.DB.prepare("SELECT id,kind,payload_json,status FROM submissions WHERE id=?").bind(id).first();if(!item)return {status:404,data:{ok:false,error:"NOT_FOUND"}};if(item.status!=="PENDING")return {status:409,data:{ok:false,error:"ALREADY_REVIEWED"}};const p=JSON.parse(item.payload_json),now=new Date().toISOString(),audit=crypto.randomUUID();if(decision==="REJECT"){await e.DB.batch([e.DB.prepare("UPDATE submissions SET status='REJECTED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'REJECT',?,? FROM submissions WHERE id=? AND status='REJECTED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"REJECTED"}};}
 if(item.kind==="STORE"){const dup=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND neighborhood_norm=? LIMIT 1").bind(p.name_norm,p.neighborhood_norm).first();if(dup)return {status:409,data:{ok:false,error:"DUPLICATE_STORE"}};const sid=crypto.randomUUID();await e.DB.batch([e.DB.prepare("INSERT INTO stores(id,name,name_norm,category,category_norm,description,neighborhood,neighborhood_norm,latitude,longitude,status,owner_verified,source_submission_id,created_at,updated_at) SELECT ?,json_extract(payload_json,'$.name'),json_extract(payload_json,'$.name_norm'),json_extract(payload_json,'$.category'),json_extract(payload_json,'$.category_norm'),json_extract(payload_json,'$.description'),json_extract(payload_json,'$.neighborhood'),json_extract(payload_json,'$.neighborhood_norm'),json_extract(payload_json,'$.latitude'),json_extract(payload_json,'$.longitude'),'APPROVED',0,id,?,? FROM submissions WHERE id=? AND status='PENDING'").bind(sid,now,now,id),e.DB.prepare("UPDATE submissions SET status='APPROVED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'APPROVE',?,? FROM submissions WHERE id=? AND status='APPROVED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"APPROVED",store_id:sid}};}
 if(item.kind==="PRODUCT"){let s=null;if(p.store_neighborhood_norm)s=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND neighborhood_norm=? AND status='APPROVED' LIMIT 1").bind(p.store_name_norm,p.store_neighborhood_norm).first();else{const m=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND status='APPROVED' ORDER BY created_at LIMIT 2").bind(p.store_name_norm).all();if((m.results||[]).length>1)return {status:409,data:{ok:false,error:"AMBIGUOUS_STORE",message:"حدد الحي لتمييز فرع المتجر."}};s=(m.results||[])[0]||null;}if(!s)return {status:409,data:{ok:false,error:"STORE_NOT_APPROVED"}};const dup=await e.DB.prepare("SELECT id FROM products WHERE store_id=? AND name_norm=? LIMIT 1").bind(s.id,p.name_norm).first();if(dup)return {status:409,data:{ok:false,error:"DUPLICATE_PRODUCT"}};const pid=crypto.randomUUID();await e.DB.batch([e.DB.prepare("INSERT INTO products(id,store_id,name,name_norm,category,category_norm,description,price,currency,image_url,status,source_submission_id,created_at) SELECT ?,?,json_extract(payload_json,'$.name'),json_extract(payload_json,'$.name_norm'),json_extract(payload_json,'$.category'),json_extract(payload_json,'$.category_norm'),json_extract(payload_json,'$.description'),json_extract(payload_json,'$.price'),'YER',json_extract(payload_json,'$.image_url'),'ACTIVE',id,? FROM submissions WHERE id=? AND status='PENDING'").bind(pid,s.id,now,id),e.DB.prepare("UPDATE submissions SET status='APPROVED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'APPROVE',?,? FROM submissions WHERE id=? AND status='APPROVED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"APPROVED",product_id:pid}};}return {status:400,data:{ok:false,error:"UNKNOWN_KIND"}};}
+
+const DIRECTORY_CANDIDATE_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK";
+export function buildDirectoryCandidateFilter(url) {
+  const area = String(url.searchParams.get("area") || "ibb").toLowerCase();
+  if (!["ibb", "outside", "missing", "all"].includes(area)) throw new InputError("نطاق المراجعة غير صالح");
+  const q = norm(url.searchParams.get("q") || "").slice(0, 100);
+  const where = ["source_name=?", "verification_status='UNVERIFIED'", "visibility_status='NEEDS_REVIEW'"];
+  const values = [DIRECTORY_CANDIDATE_SOURCE];
+  if (area === "ibb") where.push("(latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN 13.82 AND 14.08 AND longitude BETWEEN 44.05 AND 44.32)");
+  if (area === "outside") where.push("(latitude IS NOT NULL AND longitude IS NOT NULL AND NOT (latitude BETWEEN 13.82 AND 14.08 AND longitude BETWEEN 44.05 AND 44.32))");
+  if (area === "missing") where.push("(latitude IS NULL OR longitude IS NULL)");
+  if (q) {
+    where.push("(instr(name_norm,?)>0 OR instr(category_norm,?)>0 OR instr(address_norm,?)>0 OR instr(neighborhood,?)>0 OR instr(phone,?)>0 OR instr(place_id,?)>0)");
+    values.push(q, q, q, q, q, q);
+  }
+  const pagination = page(url);
+  return { area, q, whereSql: where.join(" AND "), values, limit: Math.min(50, pagination.l), offset: Math.min(5000, pagination.o) };
+}
+
+async function listAdminDirectoryCandidates(url, env) {
+  const filter = buildDirectoryCandidateFilter(url);
+  const base = "source_name=? AND verification_status='UNVERIFIED' AND visibility_status='NEEDS_REVIEW'";
+  const statsSql = "SELECT COUNT(*) AS total, " +
+    "SUM(CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN 13.82 AND 14.08 AND longitude BETWEEN 44.05 AND 44.32 THEN 1 ELSE 0 END) AS inside_ibb, " +
+    "SUM(CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL AND NOT (latitude BETWEEN 13.82 AND 14.08 AND longitude BETWEEN 44.05 AND 44.32) THEN 1 ELSE 0 END) AS outside_ibb, " +
+    "SUM(CASE WHEN latitude IS NULL OR longitude IS NULL THEN 1 ELSE 0 END) AS missing_coordinates " +
+    "FROM directory_places WHERE " + base;
+  const countSql = "SELECT COUNT(*) AS total FROM directory_places WHERE " + filter.whereSql;
+  const rowsSql = "SELECT id,source_record_id,name,kind,category,address,district,neighborhood,phone,website_url,latitude,longitude,location_precision,identity_status,location_status,verification_status,visibility_status,place_id,plus_code,maps_url,source_name,source_status,source_url,updated_at " +
+    "FROM directory_places WHERE " + filter.whereSql + " ORDER BY name COLLATE NOCASE,id LIMIT ? OFFSET ?";
+  const [stats, count, rows] = await Promise.all([
+    env.DB.prepare(statsSql).bind(DIRECTORY_CANDIDATE_SOURCE).first(),
+    env.DB.prepare(countSql).bind(...filter.values).first(),
+    env.DB.prepare(rowsSql).bind(...filter.values, filter.limit, filter.offset).all()
+  ]);
+  const summary = {
+    total: Number(stats && stats.total || 0),
+    inside_ibb: Number(stats && stats.inside_ibb || 0),
+    outside_ibb: Number(stats && stats.outside_ibb || 0),
+    missing_coordinates: Number(stats && stats.missing_coordinates || 0)
+  };
+  const items = rows.results || [];
+  return {
+    ok: true,
+    items,
+    summary,
+    area: filter.area,
+    query: filter.q,
+    total: Number(count && count.total || 0),
+    limit: filter.limit,
+    offset: filter.offset,
+    has_more: filter.offset + items.length < Number(count && count.total || 0)
+  };
+}
+
 async function route(req,e){const u=new URL(req.url),o=req.headers.get("Origin");if(o&&!isAllowedOrigin(o,e))return new Response("ORIGIN_NOT_ALLOWED",{status:403});if(req.method==="OPTIONS")return options(o,e);try{
 if(req.method==="GET"&&u.pathname==="/api/health"){await e.DB.prepare("SELECT 1").first();return out({ok:true,service:"ibb-market-api",database:"connected",api_version:V},200,o,e);}
 if(req.method==="GET"&&u.pathname==="/api/v1/stores")return out(await listStores(u,e),200,o,e);
@@ -33,6 +88,7 @@ let m=u.pathname.match(/^\/api\/v1\/stores\/([^/]+)\/products$/);if(req.method==
 m=u.pathname.match(/^\/api\/v1\/stores\/([^/]+)$/);if(req.method==="GET"&&m){const r=await e.DB.prepare("SELECT id,name,category,description,neighborhood,latitude,longitude,owner_verified,status,created_at,updated_at FROM stores WHERE id=? AND status='APPROVED'").bind(decodeURIComponent(m[1])).first();return r?out({ok:true,store:storeOut(r)},200,o,e):out({ok:false,error:"NOT_FOUND"},404,o,e);}
 if(req.method==="POST"&&u.pathname==="/api/v1/submissions/stores"){const r=await submit(req,e,"STORE",storeInput(await read(req)));return out(r.data,r.status,o,e);}
 if(req.method==="POST"&&u.pathname==="/api/v1/submissions/products"){const r=await submit(req,e,"PRODUCT",productInput(await read(req)));return out(r.data,r.status,o,e);}
+if(req.method==="GET"&&u.pathname==="/api/v1/admin/directory/candidates"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);return out(await listAdminDirectoryCandidates(u,e),200,o,e);}
 if(req.method==="GET"&&u.pathname==="/api/v1/admin/submissions"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);const st=String(u.searchParams.get("status")||"PENDING").toUpperCase(),kind=String(u.searchParams.get("kind")||"").toUpperCase(),lim=Math.max(1,Math.min(100,Number(u.searchParams.get("limit")||50)||50));if(!["PENDING","APPROVED","REJECTED","ALL"].includes(st)||(kind&&!["STORE","PRODUCT"].includes(kind)))throw new InputError("عامل تصفية غير صالح");const w=[],p=[];if(st!=="ALL"){w.push("status=?");p.push(st);}if(kind){w.push("kind=?");p.push(kind);}p.push(lim);const r=await e.DB.prepare("SELECT id,kind,payload_json,status,created_at,reviewed_at,review_reason FROM submissions "+(w.length?"WHERE "+w.join(" AND ")+" ":"")+"ORDER BY created_at DESC LIMIT ?").bind(...p).all();return out({ok:true,items:(r.results||[]).map(x=>({id:x.id,kind:x.kind,payload:JSON.parse(x.payload_json),status:x.status,created_at:x.created_at,reviewed_at:x.reviewed_at,review_reason:x.review_reason}))},200,o,e);}
 m=u.pathname.match(/^\/api\/v1\/admin\/submissions\/([^/]+)\/review$/);if(req.method==="POST"&&m){const r=await doReview(req,e,decodeURIComponent(m[1]));return out(r.data,r.status,o,e);}
 const extended=await handleDirectoryCatalog(req,e,u,o);if(extended)return extended;
