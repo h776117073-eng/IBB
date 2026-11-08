@@ -78,6 +78,15 @@
   </main>
   <footer class="site-footer"><div class="wrap footer-inner"><a class="brand footer-brand" href="#home"><span class="brand-symbol">إب</span><span class="brand-copy"><strong>ماركت إب</strong><small>نبني سوقاً محلياً أوضح</small></span></a><p>نسخة تجريبية للعرض والاستكشاف. لا تنفّذ طلبات شراء أو مدفوعات.</p><span>© ماركت إب</span></div></footer>
   <nav class="mobile-nav" aria-label="التنقل السفلي"><a class="active" href="#home"><span>⌂</span>الرئيسية</a><a href="#stores"><span>▦</span>المتاجر</a><a href="#products"><span>▤</span>المنتجات</a><button type="button" id="mobileCartButton"><span>▱<i id="mobileCartCount">0</i></span>السلة</button></nav>
+  <dialog class="detail-dialog location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
+    <div class="dialog-header"><div><span class="eyebrow">منطقة التسوق</span><h2 id="locationDialogTitle">اختر الحي</h2></div><button class="close-button" id="closeLocation" type="button" aria-label="إغلاق">×</button></div>
+    <form id="locationForm" class="location-form">
+      <label for="neighborhoodInput">اسم الحي أو المنطقة في مدينة إب</label>
+      <input id="neighborhoodInput" name="neighborhood" type="text" maxlength="80" autocomplete="off" placeholder="مثلاً: الظهار أو شارع العدين">
+      <p class="location-help">اكتب اسم الحي كما يعرفه السكان. يمكنك ترك الحقل فارغًا لعرض مدينة إب دون تصفية.</p>
+      <div class="location-actions"><button type="button" id="clearLocation" class="location-clear">عرض مدينة إب كاملة</button><button type="submit" class="location-apply">اعتماد الحي</button></div>
+    </form>
+  </dialog>
   <dialog class="cart-dialog" id="cartDialog">
     <div class="dialog-header"><div><span class="eyebrow">مراجعة الاختيار</span><h2>سلتك التجريبية</h2></div><button class="close-button" id="closeCart" type="button" aria-label="إغلاق">×</button></div>
     <div id="cartItems" class="cart-items"></div>

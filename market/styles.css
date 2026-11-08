@@ -32,3 +32,17 @@
 .catalog-suggestion-card b{display:block;font-size:12px;line-height:1.5}
 .catalog-suggestion-card small{display:block;margin-top:3px;color:#71818c;font-size:10px}
 .catalog-suggestion-tag{font-size:9px;color:#087e73;background:#e6f5f1;border-radius:20px;padding:4px 7px;white-space:nowrap}
+
+
+/* Optional customer neighbourhood selector; no browser geolocation is requested. */
+.location-dialog{width:min(430px,calc(100% - 24px));max-height:82vh}
+.location-form{padding:18px}
+.location-form label{display:block;font-size:12px;font-weight:850;margin-bottom:8px;color:var(--ink)}
+.location-form input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 13px;font:inherit;font-size:12px;color:var(--ink);background:#fff}
+.location-form input:focus-visible{outline:3px solid rgba(19,119,103,.2);outline-offset:2px}
+.location-form .location-help{font-size:10px;color:var(--muted);line-height:1.8;margin:10px 0 15px}
+.location-actions{display:flex;gap:8px;flex-wrap:wrap}
+.location-clear,.location-apply{min-height:42px;padding:0 13px;border-radius:11px;font:inherit;font-size:11px;font-weight:850;cursor:pointer}
+.location-clear{border:1px solid var(--line);background:#f7faf6;color:var(--forest)}
+.location-apply{border:0;background:var(--forest);color:white}
+@media(max-width:520px){.location-form{padding:14px}.location-actions button{flex:1}}

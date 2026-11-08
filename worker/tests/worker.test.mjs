@@ -55,3 +55,25 @@ test("directory candidate review API returns an authenticated read-only page",as
   assert.equal(body.items[0].id,"gmaps-test");
   assert.equal(body.has_more,false);
 });
+
+
+test("store listing applies an optional neighbourhood filter through bound SQL parameters",async()=>{
+  let captured;
+  const DB={prepare(sql){return {sql,params:[],bind(...params){this.params=params;captured=this;return this;},all:async()=>({results:[{id:"store-1",name:"متجر الظهار",category:"بقالة",description:"",neighborhood:"الظهار",latitude:13.96,longitude:44.17,owner_verified:0,status:"APPROVED",created_at:"2026-11-09",updated_at:"2026-11-09"}]})};}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/stores?neighborhood=%D8%A7%D9%84%D8%B8%D9%87%D8%A7%D8%B1"),{DB});
+  assert.equal(response.status,200);
+  assert.match(captured.sql,/instr\(neighborhood_norm,\?\)>0/);
+  assert.deepEqual(captured.params.slice(4,6),["الظهار","الظهار"]);
+  assert.equal((await response.json()).items[0].neighborhood,"الظهار");
+});
+
+test("product listing filters by the approved store neighbourhood and exposes the store area",async()=>{
+  let captured;
+  const DB={prepare(sql){return {sql,params:[],bind(...params){this.params=params;captured=this;return this;},all:async()=>({results:[{id:"product-1",store_id:"store-1",store_name:"متجر الظهار",store_neighborhood:"الظهار",name:"أرز",category:"مواد غذائية",description:"",price:1200,currency:"YER",image_url:"",created_at:"2026-11-09"}]})};}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/products?neighborhood=%D8%A7%D9%84%D8%B8%D9%87%D8%A7%D8%B1"),{DB});
+  assert.equal(response.status,200);
+  assert.match(captured.sql,/instr\(s\.neighborhood_norm,\?\)>0/);
+  assert.deepEqual(captured.params.slice(6,8),["الظهار","الظهار"]);
+  const product=(await response.json()).items[0];
+  assert.equal(product.store_neighborhood,"الظهار");
+});
