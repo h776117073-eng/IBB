@@ -27,13 +27,15 @@
 
 ## 3. عدم تطابق نموذج البيانات
 
-مخطط Worker/D1 الحالي في المستودع يستخدم:
+ملفات D1 المصدرية في المستودع هي `worker/migrations/0001_shared_directory.sql` و`worker/migrations/0002_directory_catalog_payments.sql`. وتبني نطاقات منفصلة:
 
-- `stores`: الاسم، النشاط، الحي، الإحداثيات، حالة النشر والتحقق.
-- `products`: ارتباط بالمتجر، الاسم والسعر والصورة والحالة.
-- `submissions`: طلبات إضافة متجر/منتج، مفتاح منع التكرار، بيانات الإرسال، حالة المراجعة.
-- `moderation_audit`: سجل قرارات المراجعة.
-- `rate_limits`: تحديد معدل المساهمات.
+- **الدليل التجاري والمساهمات:** `stores`, `products`, `submissions`, `moderation_audit`, `rate_limits`.
+- **الدليل الجغرافي:** `directory_places` (BUSINESS/LANDMARK/STREET/NEIGHBORHOOD/PUBLIC_SERVICE/OTHER)، مع المصدر والتحقق والظهور والهندسة.
+- **الكتالوج العالمي المرجعي:** `catalog_products`؛ لا يثبت التوفر المحلي أو مخزون متجر.
+- **اقتراحات الربط:** `store_catalog_suggestions`, `directory_catalog_suggestions`.
+- **تهيئة الدفع المستقبلية:** `payment_provider_configs`, `payment_intents`, `payment_events`؛ وجود الجداول لا يعني وجود checkout أو مزود دفع فعّال.
+
+تفاصيل واجهات API وربط كل مسار بهذه الجداول موجودة في `docs/IBB_SUPABASE_API_MAPPING.md`.
 
 أما Supabase الحالي فيستخدم نموذجًا مختلفًا: `merchants/customers/carts/orders/payment_receipts/whatsapp_messages`. حتى جدول `products` مختلف: يعتمد `merchant_id`, `price_yer`, `stock`, `active`, `embedding` بدل `store_id`, `price`, `currency`, `status` في D1. لا توجد جداول مقابلة لـ `stores`, `submissions`, `moderation_audit`, أو `rate_limits`.
 
@@ -70,7 +72,7 @@
 ## 6. مراحل العمل التالية
 
 1. **معمارية مستقلة:** تصميم مخطط `ibb` دون لمس `public` الحالي، مع تعريف مالك السجل وحالات الاعتماد والحي/الموقع.
-2. **عقود API:** كتابة mapping بين نقاط Worker الحالية وجداول `ibb` المقترحة، مع الحفاظ على شكل الاستجابات.
+2. **عقود API:** استُكملت خريطة المسارات والجداول في `docs/IBB_SUPABASE_API_MAPPING.md`؛ يلزم تحويلها إلى contract tests تحفظ شكل الاستجابات.
 3. **RLS:** تحديد القراءة العامة للمنشآت المعتمدة فقط، وإرسال المساهمات عبر قواعد تحقق/مراجعة؛ ربط صلاحيات الإدارة بهوية خادمية موثوقة. لا تستند إلى `user_metadata`.
 4. **Migration/اختبارات:** إنشاء migration عبر Supabase CLI وفق الإجراء الرسمي، وتشغيل اختبارات RLS وقيود التكرار والفهارس على بيئة محلية/معزولة قبل اعتمادها.
 5. **ربط Worker:** استخدام credential خادمي محفوظ في Cloudflare Secrets أو Edge Function، وعدم إرسال service-role للمتصفح.
@@ -86,4 +88,4 @@
 - لم يتم ترحيل بيانات D1 أو الأرشيف.
 - لم يتغير `main` أو نشر Cloudflare Worker إنتاجي في هذه الدفعة.
 
-**الخلاصة:** الاتصال الحي والجرد اكتملَا، لكن ربط التطبيق لم يكتمل بعد. البوابة التالية هي اعتماد تصميم `ibb` المنفصل وعقود التحويل والاختبارات قبل أي تغيير في قاعدة الإنتاج.
+**الخلاصة:** الاتصال الحي والجرد ومخطط المجال وخريطة API موثقة؛ لكن ربط التطبيق لم يكتمل بعد. البوابة التالية هي اعتماد تصميم `ibb` المنفصل وعقود التحويل والاختبارات قبل أي تغيير في قاعدة الإنتاج.
