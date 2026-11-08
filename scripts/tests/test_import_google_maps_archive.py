@@ -48,7 +48,8 @@ class GoogleMapsArchiveImportTests(unittest.TestCase):
             "verificationStatus": "UNVERIFIED",
             "visibilityStatus": "NEEDS_REVIEW",
             "chunks": [f"maps-candidates-{i:03}.json" for i in range(1, 72)],
-            "sourceWorkbook": importer.EXPECTED_WORKBOOK,
+            "sourceWorkbook": importer.EXPECTED_MANIFEST_WORKBOOK,
+            "stagedRowSourceFile": importer.EXPECTED_STAGED_ROW_FILE,
         }
         importer.validate_manifest(manifest)
         manifest["rawSheetRecordsImported"] = 1
