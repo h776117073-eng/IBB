@@ -316,7 +316,7 @@ const GOOGLE_MAPS_ARCHIVE_ROWS = 7015;
 export function validateGoogleMapsArchiveCandidate(x) {
   const fail = (reason) => ({ ok: false, reason });
   if (!x || typeof x !== "object" || Array.isArray(x)) return fail("RECORD_MUST_BE_OBJECT");
-  const record = /^unique-sheet-row-(\\d+)$/.exec(String(x.source_record_id || ""));
+  const record = /^unique-sheet-row-(\d+)$/.exec(String(x.source_record_id || ""));
   const sequence = record ? Number(record[1]) : 0;
   if (!Number.isInteger(sequence) || sequence < 1 || sequence > GOOGLE_MAPS_ARCHIVE_ROWS) return fail("INVALID_SOURCE_ROW");
   if (!/^gmaps-[a-f0-9]{24}$/.test(String(x.id || ""))) return fail("INVALID_ARCHIVE_ID");
