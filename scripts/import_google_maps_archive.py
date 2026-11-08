@@ -131,6 +131,12 @@ def load_candidates(source: Path) -> tuple[dict, list[dict]]:
 
     if len(rows) != EXPECTED_RECORDS:
         raise ValueError(f"Expected {EXPECTED_RECORDS} rows, found {len(rows)}")
+    observed_source_files = sorted({str(row.get("source_file", "")) for row in rows})
+    if observed_source_files != [EXPECTED_WORKBOOK]:
+        raise ValueError(
+            f"Staged row source_file values do not match allowlisted workbook: "
+            f"observed={observed_source_files!r}, expected={EXPECTED_WORKBOOK!r}"
+        )
     sequences: set[int] = set()
     ids: set[str] = set()
     place_ids: set[str] = set()
