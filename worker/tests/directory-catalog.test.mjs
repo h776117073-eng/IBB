@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { parseBbox, clusterStep, classifyEntityKind, validateGoogleMapsArchiveCandidate } from "../src/directory-catalog.js";
 
 test("map bounding box accepts a valid Ibb viewport", () => {
@@ -30,8 +31,10 @@ test("Arabic map entity classifier distinguishes streets, neighborhoods and plac
 
 
 function safeArchiveCandidate(overrides = {}) {
+  const placeId = "ChIJAbcdefghijklmnop";
+  const id = "gmaps-" + createHash("sha256").update(placeId).digest("hex").slice(0, 24);
   return {
-    id: "gmaps-0123456789abcdef01234567",
+    id,
     source_file: "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx",
     source_record_id: "unique-sheet-row-1",
     name: "صيدلية الشفاء",
@@ -49,7 +52,7 @@ function safeArchiveCandidate(overrides = {}) {
     visibility_status: "NEEDS_REVIEW",
     is_commercial: 1,
     is_public: 0,
-    place_id: "ChIJAbcdefghijklmnop",
+    place_id: placeId,
     source_name: "GOOGLE_MAPS_ARCHIVE_WORKBOOK",
     source_status: "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED",
     source_hash: "a".repeat(64),
@@ -57,21 +60,23 @@ function safeArchiveCandidate(overrides = {}) {
   };
 }
 
-test("Google Maps archive candidates pass only with the restricted review state", () => {
-  assert.deepEqual(validateGoogleMapsArchiveCandidate(safeArchiveCandidate()), { ok: true, sequence: 1 });
+test("Google Maps archive candidates pass only with the restricted review state", async () => {
+  assert.deepEqual(await validateGoogleMapsArchiveCandidate(safeArchiveCandidate()), { ok: true, sequence: 1 });
 });
 
-test("Google Maps archive importer rejects other sources and unsafe publication states", () => {
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_name: "RAW_16441" })).ok, false);
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ verification_status: "VERIFIED_MATCH" })).ok, false);
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ visibility_status: "PUBLISHED", is_public: 1 })).ok, false);
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ is_public: 1 })).ok, false);
+test("Google Maps archive importer rejects other sources and unsafe publication states", async () => {
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_name: "RAW_16441" }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ verification_status: "VERIFIED_MATCH" }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ visibility_status: "PUBLISHED", is_public: 1 }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ is_public: 1 }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_file: "other.xlsx" }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ place_id: "ChIJdifferent123456" }))).ok, false);
 });
 
-test("Google Maps archive importer rejects unquarantined or invalid coordinates", () => {
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({
+test("Google Maps archive importer rejects unquarantined or invalid coordinates", async () => {
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({
     location_status: "MISSING", location_precision: "MISSING", latitude: 13.975, longitude: 44.178
-  })).ok, false);
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ latitude: 15.0 })).ok, false);
-  assert.equal(validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_record_id: "unique-sheet-row-7016" })).ok, false);
+  }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ latitude: 15.0 }))).ok, false);
+  assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_record_id: "unique-sheet-row-7016" }))).ok, false);
 });
