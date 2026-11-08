@@ -97,5 +97,6 @@
     "maps-candidates-069.json",
     "maps-candidates-070.json",
     "maps-candidates-071.json"
-  ]
+  ],
+  "stagedRowSourceFile": "verified_ibb_registry.xlsx"
 }
