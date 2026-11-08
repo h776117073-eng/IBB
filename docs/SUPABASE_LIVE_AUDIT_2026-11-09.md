@@ -93,19 +93,23 @@
 
 ## مطابقة مخطط IBB
 
-Worker/D1 في المستودع لديه الجداول:
+مخطط D1 المصدر في الفرع الذي يحتوي توسعات الكتالوج يتكون من 12 جدولًا عبر ملفي migration:
 
-- `stores`
-- `products`
-- `submissions`
-- `moderation_audit`
-- `rate_limits`
+- `stores`, `products`, `submissions`, `moderation_audit`, `rate_limits`.
+- `directory_places`, `catalog_products`, `store_catalog_suggestions`, `directory_catalog_suggestions`.
+- `payment_provider_configs`, `payment_intents`, `payment_events`.
+
+الملف `0002_directory_catalog_payments.sql` موجود في الفرع `feature/ibb-market-neighborhood-selector-2026-11-09`. يضيف دليل الأماكن والكتالوج والاقتراحات وبنية الدفع المستقبلية. وجود DDL الدفع وendpoint readiness لا يثبت أن checkout أو webhook أو refund مفعّل.
 
 Supabase الحالي لديه جداول لتجار وعملاء وسلال وطلبات ومدفوعات ورسائل WhatsApp. جدول `products` في Supabase يختلف بنيويًا عن جدول D1:
 - Supabase: `merchant_id`, `price_yer`, `stock`, `active`, `embedding`.
 - D1: `store_id`, `price`, `currency`, `status`, `source_submission_id`.
 
-ولا توجد جداول Supabase مقابلة لـ `stores`, `submissions`, `moderation_audit`, `rate_limits`. بناء على ذلك لا يوجد تطابق مباشر ولا يمكن وصل Worker بقاعدة Supabase الحالية دون تصميم مجال منفصل.
+ولا توجد جداول Supabase مقابلة لـ `stores`, `submissions`, `moderation_audit`, `rate_limits`, أو كيانات `directory_places` و`catalog_products` واقتراحاتها. كما أن D1 تمتلك جداول دفع ذات غرض readiness/intent/events تختلف عن `orders/payment_receipts` في Supabase. بناء على ذلك لا يوجد تطابق مباشر ولا يمكن وصل Worker بقاعدة Supabase الحالية دون تصميم مجال منفصل.
+
+## ملاحظة ملكية الحساب
+
+لا يظهر ضمن أعمدة `public.merchants` حقل مستخدم مصادق عليه أو FK إلى `auth.users`. لذلك لا يمكن استنتاج هوية مالك التاجر أو سياسات ملكية من صفوف merchants الحالية وحدها. يلزم تعريف ربط هوية/عضوية صريح قبل سياسات authenticated.
 
 ## قرار التنفيذ
 
