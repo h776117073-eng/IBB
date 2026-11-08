@@ -311,7 +311,7 @@ function numericValue(value) {
 }
 
 const GOOGLE_MAPS_ARCHIVE_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK";
-const GOOGLE_MAPS_ARCHIVE_FILE = "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx";
+const GOOGLE_MAPS_ARCHIVE_FILE = "verified_ibb_registry.xlsx";
 const GOOGLE_MAPS_ARCHIVE_ROWS = 7015;
 
 export async function validateGoogleMapsArchiveCandidate(x) {
