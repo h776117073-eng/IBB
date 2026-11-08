@@ -282,7 +282,7 @@ async function getProductImage(barcode, env) {
 
 
 function authorizedImport(req, env) {
-  const expected = String(env.IMPORT_API_KEY || "");
+  const expected = String(env.IMPORT_API_KEY || env.ADMIN_API_KEY || "");
   const supplied = String(req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   return Boolean(expected && supplied && constantTimeEqual(expected, supplied));
 }
@@ -311,9 +311,10 @@ function numericValue(value) {
 }
 
 const GOOGLE_MAPS_ARCHIVE_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK";
+const GOOGLE_MAPS_ARCHIVE_FILE = "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx";
 const GOOGLE_MAPS_ARCHIVE_ROWS = 7015;
 
-export function validateGoogleMapsArchiveCandidate(x) {
+export async function validateGoogleMapsArchiveCandidate(x) {
   const fail = (reason) => ({ ok: false, reason });
   if (!x || typeof x !== "object" || Array.isArray(x)) return fail("RECORD_MUST_BE_OBJECT");
   const record = /^unique-sheet-row-(\d+)$/.exec(String(x.source_record_id || ""));
@@ -322,7 +323,10 @@ export function validateGoogleMapsArchiveCandidate(x) {
   if (!/^gmaps-[a-f0-9]{24}$/.test(String(x.id || ""))) return fail("INVALID_ARCHIVE_ID");
   if (!/^ChI[A-Za-z0-9_-]{10,}$/.test(String(x.place_id || ""))) return fail("INVALID_PLACE_ID");
   if (!/^[a-f0-9]{64}$/.test(String(x.source_hash || ""))) return fail("INVALID_SOURCE_HASH");
-  if (!String(x.source_file || "").trim() || !String(x.name || "").trim()) return fail("SOURCE_FILE_AND_NAME_REQUIRED");
+  if (x.source_file !== GOOGLE_MAPS_ARCHIVE_FILE || !String(x.name || "").trim()) return fail("SOURCE_FILE_NOT_ALLOWLISTED");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(x.place_id)));
+  const digestHex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  if (x.id !== "gmaps-" + digestHex.slice(0, 24)) return fail("ARCHIVE_ID_PLACE_ID_MISMATCH");
   if (x.source_name !== GOOGLE_MAPS_ARCHIVE_SOURCE ||
       x.source_status !== "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED") return fail("SOURCE_NOT_ALLOWLISTED");
   if (x.identity_status !== "UNVERIFIED" ||
@@ -370,7 +374,7 @@ async function importRows(req, env, origin, type) {
         return jsonResponse({ ok:false,error:"PUBLISHED_PLACE_REQUIRES_VERIFIED_COORDINATES",record_id:textValue(x.id,128) },400,origin);
       }
       if (type === "directory_archive") {
-        const archiveCheck = validateGoogleMapsArchiveCandidate(x);
+        const archiveCheck = await validateGoogleMapsArchiveCandidate(x);
         if (!archiveCheck.ok) return jsonResponse({ok:false,error:"UNSAFE_GOOGLE_MAPS_ARCHIVE_RECORD",reason:archiveCheck.reason,record_id:textValue(x.id,128)},400,origin);
       }
       const precision = textValue(x.location_precision,24);
