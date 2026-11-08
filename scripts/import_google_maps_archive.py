@@ -27,7 +27,8 @@ EXPECTED_RECORDS = 7015
 EXPECTED_RAW_RECORDS = 16441
 EXPECTED_SHARDS = 71
 EXPECTED_SOURCE = "GOOGLE_MAPS_ARCHIVE_WORKBOOK"
-EXPECTED_WORKBOOK = "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx"
+EXPECTED_MANIFEST_WORKBOOK = "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx"
+EXPECTED_STAGED_ROW_FILE = "verified_ibb_registry.xlsx"
 EXPECTED_SOURCE_STATUS = "ARCHIVE_EXTRACTED_NOT_INDEPENDENTLY_REVIEWED"
 DEFAULT_API_BASE = "https://ibb-market-api.aicreativestudio.workers.dev"
 IMPORT_PATH = "/api/v1/admin/directory/archive-import"
@@ -42,7 +43,8 @@ def validate_manifest(manifest: dict) -> None:
         "recordsPublished": 0,
         "verificationStatus": "UNVERIFIED",
         "visibilityStatus": "NEEDS_REVIEW",
-        "sourceWorkbook": EXPECTED_WORKBOOK,
+        "sourceWorkbook": EXPECTED_MANIFEST_WORKBOOK,
+        "stagedRowSourceFile": EXPECTED_STAGED_ROW_FILE,
     }
     for key, expected in required.items():
         if manifest.get(key) != expected:
@@ -50,8 +52,10 @@ def validate_manifest(manifest: dict) -> None:
     chunks = manifest.get("chunks")
     if not isinstance(chunks, list) or len(chunks) != EXPECTED_SHARDS:
         raise ValueError(f"Expected exactly {EXPECTED_SHARDS} staged shards")
-    if manifest.get("sourceWorkbook") != EXPECTED_WORKBOOK:
-        raise ValueError("Manifest workbook is not the allowlisted source file")
+    if manifest.get("sourceWorkbook") != EXPECTED_MANIFEST_WORKBOOK:
+        raise ValueError("Manifest workbook label is not the expected reviewed workbook")
+    if manifest.get("stagedRowSourceFile") != EXPECTED_STAGED_ROW_FILE:
+        raise ValueError("Manifest row-level source filename does not match the staged record metadata")
 
 
 def validate_candidate(row: dict) -> int:
@@ -72,7 +76,7 @@ def validate_candidate(row: dict) -> int:
         raise ValueError("Candidate ID does not match its Place ID")
     if not re.fullmatch(r"[a-f0-9]{64}", str(row.get("source_hash", ""))):
         raise ValueError("Invalid source hash")
-    if row.get("source_file") != EXPECTED_WORKBOOK or not str(row.get("name", "")).strip():
+    if row.get("source_file") != EXPECTED_STAGED_ROW_FILE or not str(row.get("name", "")).strip():
         raise ValueError("Candidate source file is not the allowlisted workbook")
 
     fixed = {
@@ -132,10 +136,10 @@ def load_candidates(source: Path) -> tuple[dict, list[dict]]:
     if len(rows) != EXPECTED_RECORDS:
         raise ValueError(f"Expected {EXPECTED_RECORDS} rows, found {len(rows)}")
     observed_source_files = sorted({str(row.get("source_file", "")) for row in rows})
-    if observed_source_files != [EXPECTED_WORKBOOK]:
+    if observed_source_files != [EXPECTED_STAGED_ROW_FILE]:
         raise ValueError(
-            f"Staged row source_file values do not match allowlisted workbook: "
-            f"observed={observed_source_files!r}, expected={EXPECTED_WORKBOOK!r}"
+            f"Staged row source_file values do not match manifest row-source label: "
+            f"observed={observed_source_files!r}, expected={EXPECTED_STAGED_ROW_FILE!r}"
         )
     sequences: set[int] = set()
     ids: set[str] = set()
