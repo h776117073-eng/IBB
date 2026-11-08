@@ -46,7 +46,7 @@ test("directory candidate review API returns an authenticated read-only page",as
     };
   }};
   const key="admin-secret-key-that-is-longer-than-32";
-  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/directory/candidates?area=ibb&limit=20"),{DB:db,ADMIN_API_KEY:key});
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/directory/candidates?area=ibb&limit=20",{headers:{Authorization:"Bearer "+key}}),{DB:db,ADMIN_API_KEY:key});
   assert.equal(response.status,200);
   const body=await response.json();
   assert.equal(body.total,1);
