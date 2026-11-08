@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { parseBbox, clusterStep, classifyEntityKind, validateGoogleMapsArchiveCandidate } from "../src/directory-catalog.js";
+import { parseBbox, clusterStep, classifyEntityKind, validateGoogleMapsArchiveCandidate, classifyGoogleMapsArchiveConflicts } from "../src/directory-catalog.js";
 
 test("map bounding box accepts a valid Ibb viewport", () => {
   assert.deepEqual(parseBbox("44.05,13.82,44.32,14.08"), {
@@ -35,7 +35,7 @@ function safeArchiveCandidate(overrides = {}) {
   const id = "gmaps-" + createHash("sha256").update(placeId).digest("hex").slice(0, 24);
   return {
     id,
-    source_file: "السجل الجديد المتحقق منه عبر خرائط جوجل.xlsx",
+    source_file: "verified_ibb_registry.xlsx",
     source_record_id: "unique-sheet-row-1",
     name: "صيدلية الشفاء",
     name_norm: "صيدلية الشفاء",
@@ -79,4 +79,65 @@ test("Google Maps archive importer rejects unquarantined or invalid coordinates"
   }))).ok, false);
   assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ latitude: 15.0 }))).ok, false);
   assert.equal((await validateGoogleMapsArchiveCandidate(safeArchiveCandidate({ source_record_id: "unique-sheet-row-7016" }))).ok, false);
+});
+
+
+test("Google Maps archive batch skips only an existing identical row identity without updating it", () => {
+  const row = safeArchiveCandidate();
+  const existing = {
+    id: row.id,
+    source_file: row.source_file,
+    source_record_id: row.source_record_id,
+    place_id: row.place_id,
+    source_hash: row.source_hash
+  };
+  const plan = classifyGoogleMapsArchiveConflicts([row], [existing]);
+  assert.equal(plan.ok, true);
+  assert.equal(plan.newRows.length, 0);
+  assert.equal(plan.skippedExisting, 1);
+  assert.equal(plan.skippedChangedSourceHash, 0);
+});
+
+test("Google Maps archive batch records changed-source conflicts as skipped without overwriting", () => {
+  const row = safeArchiveCandidate();
+  const existing = {
+    id: row.id,
+    source_file: row.source_file,
+    source_record_id: row.source_record_id,
+    place_id: row.place_id,
+    source_hash: "b".repeat(64)
+  };
+  const plan = classifyGoogleMapsArchiveConflicts([row], [existing]);
+  assert.equal(plan.ok, true);
+  assert.equal(plan.newRows.length, 0);
+  assert.equal(plan.skippedExisting, 1);
+  assert.equal(plan.skippedChangedSourceHash, 1);
+});
+
+test("Google Maps archive batch rejects a source row already assigned to another Place ID", () => {
+  const row = safeArchiveCandidate();
+  const existing = {
+    id: "gmaps-" + "0".repeat(24),
+    source_file: row.source_file,
+    source_record_id: row.source_record_id,
+    place_id: "ChIJotherExistingPlace123",
+    source_hash: "c".repeat(64)
+  };
+  const plan = classifyGoogleMapsArchiveConflicts([row], [existing]);
+  assert.equal(plan.ok, false);
+  assert.equal(plan.conflicts[0].reason, "SOURCE_ROW_ALREADY_LINKED_TO_DIFFERENT_PLACE");
+});
+
+test("Google Maps archive batch rejects an existing Place ID attached to another source row", () => {
+  const row = safeArchiveCandidate();
+  const existing = {
+    id: row.id,
+    source_file: row.source_file,
+    source_record_id: "unique-sheet-row-2",
+    place_id: row.place_id,
+    source_hash: row.source_hash
+  };
+  const plan = classifyGoogleMapsArchiveConflicts([row], [existing]);
+  assert.equal(plan.ok, false);
+  assert.equal(plan.conflicts[0].reason, "PLACE_ID_ALREADY_LINKED_TO_DIFFERENT_SOURCE_ROW");
 });
