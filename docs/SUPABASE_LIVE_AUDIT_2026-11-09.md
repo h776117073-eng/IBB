@@ -140,3 +140,22 @@ Supabase الحالي لديه جداول لتجار وعملاء وسلال و�
 8. تنفيذ shadow reads ومقارنة checksums قبل أي تحويل لمصدر البيانات.
 
 **النتيجة:** نجح الاتصال الحي والجرد والتدقيق الأولي لقاعدة Supabase. لم يتسنَّ إجراء جرد مباشر لـ D1 عبر Cloudflare API في هذه الدفعة، لذا استندت مقارنة D1 إلى migrations المصدر في GitHub. لم يكتمل ربط التطبيق، ولم تتغير قاعدة بيانات Supabase.
+
+
+## مسار الاتصال من Cloudflare
+
+- استعلام قائمة Hyperdrive في حساب Cloudflare المرتبط أعاد صفر إعدادات.
+- ملف Worker `wrangler.toml` الحالي يربط D1 ولا يملك `HYPERDRIVE` binding.
+- `worker/package.json` الحالي لا يتضمن PostgreSQL driver `pg`.
+- لم يتم إنشاء login role خاص بـ IBB أو connection string أو Hyperdrive config.
+- Cloudflare توثق اتصال Supabase عبر Hyperdrive باستخدام Direct connection؛ Hyperdrive يتولى pooling. يفضل DB role منفصل محدود على `ibb` دون منحه عضوية `postgres` أو صلاحية على `public`.
+- عدم وجود Hyperdrive config يعني أنه لا توجد قناة Worker→Supabase جاهزة حتى الآن.
+
+المراجع الرسمية:
+- https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/supabase/
+- https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/
+- https://supabase.com/docs/guides/api/using-custom-schemas
+
+## حدود التحقق من D1
+
+الملفان المصدران `worker/migrations/0001_shared_directory.sql` و`worker/migrations/0002_directory_catalog_payments.sql` موجودان في الفرع الذي يحتوي توسعات التطبيق. لكن محاولة قراءة `sqlite_master` عبر Cloudflare D1 REST API رجعت 404 routing، وكذلك محاولة listing endpoint. لذلك لا أصف مخطط D1 بأنه verified-live؛ هو مطابق لمصدر GitHub فقط حتى يتوفر مسار إداري صالح لفحص D1 الحية.
