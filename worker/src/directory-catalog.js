@@ -37,7 +37,7 @@ export function classifyEntityKind(name, category = "", sourceCategory = "") {
   if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة|neighborhood|district|suburb|village|locality|residential area)/i.test(categoryText)) return "NEIGHBORHOOD";
 
   if (/^(شارع|طريق|نفق|دوار|تقاطع|جولة|ميدان|street|road|route|highway|intersection|roundabout)(?:\s|$)/i.test(nameText)) return "STREET";
-  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات|قطع غيار|تاجر|وكالة|فندق|بنك|مقهى|مطبعة|حلاق|تجميل|مورد|سوبرماركت|store|shop|restaurant|cafe|pharmacy|bakery|grocery|supermarket|butcher|hotel|bank)/i.test(nameText)) return "BUSINESS";
+  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات|قطع غيار|تاجر|وكالة|فندق|بنك|مقهى|مطبعة|حلاق|تجميل|مورد|سوبرماركت|مكتبة|store|shop|restaurant|cafe|pharmacy|bakery|grocery|supermarket|butcher|hotel|bank)/i.test(nameText)) return "BUSINESS";
   if (/(مكتبة عامة|مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام|hospital|clinic|school|university|college|library|government office)/i.test(nameText)) return "PUBLIC_SERVICE";
   if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|قلعة|حصن|أثر|جسر|park|garden|bridge|museum|monument)/i.test(nameText)) return "LANDMARK";
   if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة|neighborhood|district|suburb|village|locality)/i.test(nameText)) return "NEIGHBORHOOD";
