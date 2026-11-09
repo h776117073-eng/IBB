@@ -27,6 +27,12 @@ test("Arabic map entity classifier distinguishes streets, neighborhoods and plac
   assert.equal(classifyEntityKind("الجامع الكبير", ""), "LANDMARK");
   assert.equal(classifyEntityKind("مستشفى الثورة", ""), "PUBLIC_SERVICE");
   assert.equal(classifyEntityKind("صيدلية الشفاء", ""), "BUSINESS");
+  assert.equal(classifyEntityKind("بقالة النجم إب شبان شارع العام", "بقالة", "Grocery store"), "BUSINESS");
+  assert.equal(classifyEntityKind("مصرف اليمن", "موقع", "Bank"), "BUSINESS");
+  assert.equal(classifyEntityKind("سوق إب", "سوق", "Market"), "BUSINESS");
+  assert.equal(classifyEntityKind("حديقة إب", "موقع", "City park"), "LANDMARK");
+  assert.equal(classifyEntityKind("المكتبة العامة", "مكتبة عامة", "Public library"), "PUBLIC_SERVICE");
+  assert.equal(classifyEntityKind("شارع تعز", "موقع", "Street"), "STREET");
 });
 
 
