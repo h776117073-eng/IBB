@@ -22,7 +22,18 @@ assert.match(html, /<html[^>]*lang="ar"[^>]*dir="rtl"/, "Consumer page must be A
 assert.match(html, /href="\.\/styles\.css"/, "Consumer CSS link missing");
 assert.match(html, /src="\.\/app\.js"/, "Consumer JS link missing");
 assert.match(html, /href="\.\/merchant\/index\.html"/, "Merchant portal entry link missing");
+assert.match(html, /id="locationDialog"/, "Neighbourhood selector dialog missing");
+assert.match(html, /id="locationForm"/, "Neighbourhood selector form missing");
+assert.match(html, /id="neighborhoodInput"/, "Neighbourhood input missing");
 assert.match(app, /ibb-market-api\.aicreativestudio\.workers\.dev/, "Consumer API host incorrect");
+assert.match(app, /ibb-market-neighborhood-v1/, "Neighbourhood preference persistence key missing");
+assert.match(app, /neighborhood=/, "Consumer API requests must carry the optional neighbourhood filter");
+assert.match(app, /\&q=/, "Consumer text search must be sent to the server API");
+assert.match(app, /setTimeout\(refresh,320\)/, "Consumer server search must be debounced");
+assert.match(app, /requestSequence!==refreshSequence/, "Out-of-order API responses must be ignored");
+assert.match(app, /function updateLocationLabel/, "Neighbourhood label updater missing");
+assert.doesNotMatch(app, /getCurrentPosition/, "Consumer neighbourhood selector must not request GPS");
+assert.doesNotMatch(app, /تحديد الحي وإذن الموقع سيضافان/, "Inactive location placeholder must be removed");
 assert.doesNotMatch(app, /ibb-market-edge\.aicreativestudio\.workers\.dev/, "Image Worker must not be used as catalog API");
 assert.match(css, /@media\(max-width:650px\)/, "Consumer mobile layout missing");
 assert.match(css, /prefers-reduced-motion/, "Consumer reduced-motion rule missing");

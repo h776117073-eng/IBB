@@ -1,7 +1,12 @@
 (function(){
 "use strict";
 var API="https://ibb-market-api.aicreativestudio.workers.dev";
-var state={stores:[],products:[],query:"",category:"",selectedStore:"",cart:[]};
+var NEIGHBORHOOD_KEY="ibb-market-neighborhood-v1";
+function normalizeNeighborhood(value){return String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().slice(0,80);}
+function readNeighborhood(){try{return normalizeNeighborhood(localStorage.getItem(NEIGHBORHOOD_KEY)||"");}catch(_){return "";}}
+function writeNeighborhood(value){try{if(value)localStorage.setItem(NEIGHBORHOOD_KEY,value);else localStorage.removeItem(NEIGHBORHOOD_KEY);}catch(_){}}
+var refreshSequence=0,searchTimer=0;
+var state={stores:[],products:[],query:"",category:"",selectedStore:"",neighborhood:readNeighborhood(),cart:[]};
 var $=function(id){return document.getElementById(id);};
 var storeGrid=$("storeGrid"),productGrid=$("productGrid"),productCount=$("productCount");
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -40,22 +45,44 @@ function renderProducts(){
 function renderFilters(){
  var el=$("activeFilters"),bits=[];
  if(state.query)bits.push('<button class="filter-pill" type="button" data-clear="query">البحث: '+esc(state.query)+' ×</button>');
+ if(state.neighborhood)bits.push('<button class="filter-pill" type="button" data-clear="area">الحي: '+esc(state.neighborhood)+' ×</button>');
  if(state.category)bits.push('<button class="filter-pill" type="button" data-clear="category">الفئة: '+esc(state.category)+' ×</button>');
  if(state.selectedStore)bits.push('<button class="filter-pill" type="button" data-clear="store">إلغاء تصفية المتجر ×</button>');
  el.innerHTML=bits.join("");
 }
 function render(){renderStores();renderProducts();renderFilters();}
 function refresh(){
- Promise.all([api("/api/v1/stores?limit=60"),api("/api/v1/products?limit=80")]).then(function(res){
+ var requestSequence=++refreshSequence;
+ var neighborhoodQuery=state.neighborhood?"&neighborhood="+encodeURIComponent(state.neighborhood):"";
+ var searchQuery=state.query?"&q="+encodeURIComponent(state.query):"";
+ var filters=neighborhoodQuery+searchQuery;
+ Promise.all([api("/api/v1/stores?limit=100"+filters),api("/api/v1/products?limit=100"+filters)]).then(function(res){
+  if(requestSequence!==refreshSequence)return;
   state.stores=Array.isArray(res[0].items)?res[0].items:[];
   state.products=Array.isArray(res[1].items)?res[1].items:[];
   render();
  }).catch(function(){
+  if(requestSequence!==refreshSequence)return;
   state.stores=[];state.products=[];
   storeGrid.innerHTML=empty("تعذر الاتصال ببيانات السوق","تحقق من الاتصال بالإنترنت ثم أعد تحميل الصفحة. لن نستبدل البيانات الحقيقية بعروض تجريبية.","⌁");
   productGrid.innerHTML=empty("المنتجات غير متاحة الآن","تعذر جلب المنتجات المعتمدة من الخادم.","⌁");
   productCount.textContent="غير متاح";
  });
+}
+function updateLocationLabel(){
+ var button=$("locationButton");
+ button.querySelector("small").textContent=state.neighborhood?"حي التسوق":"منطقة التسوق";
+ button.querySelector("strong").textContent=state.neighborhood||"مدينة إب";
+ button.setAttribute("aria-label",state.neighborhood?"منطقة التسوق: "+state.neighborhood:"منطقة التسوق: مدينة إب");
+}
+function applyNeighborhood(value){
+ state.neighborhood=normalizeNeighborhood(value);
+ writeNeighborhood(state.neighborhood);
+ state.selectedStore="";
+ updateLocationLabel();
+ renderFilters();
+ refresh();
+ toast(state.neighborhood?"تم تطبيق تصفية حي "+state.neighborhood:"تم عرض مدينة إب دون تصفية الحي");
 }
 function syncCategory(){document.querySelectorAll(".category-tile").forEach(function(b){b.classList.toggle("selected",b.dataset.category===state.category);});}
 function addToCart(id){
@@ -116,9 +143,9 @@ function openStore(id){
  });
 }
 function openCart(){renderCart();$("cartDialog").showModal();}
-$("searchForm").addEventListener("submit",function(e){e.preventDefault();state.query=$("searchInput").value.trim();state.selectedStore="";render();$("products").scrollIntoView({behavior:"smooth"});});
-$("searchInput").addEventListener("input",function(){state.query=this.value.trim();state.selectedStore="";renderStores();renderProducts();renderFilters();});
-document.querySelectorAll("[data-query]").forEach(function(b){b.addEventListener("click",function(){state.query=this.dataset.query;$("searchInput").value=state.query;render();$("products").scrollIntoView({behavior:"smooth"});});});
+$("searchForm").addEventListener("submit",function(e){e.preventDefault();state.query=$("searchInput").value.trim();state.selectedStore="";render();refresh();$("products").scrollIntoView({behavior:"smooth"});});
+$("searchInput").addEventListener("input",function(){state.query=this.value.trim();state.selectedStore="";renderStores();renderProducts();renderFilters();if(searchTimer)clearTimeout(searchTimer);searchTimer=setTimeout(refresh,320);});
+document.querySelectorAll("[data-query]").forEach(function(b){b.addEventListener("click",function(){state.query=this.dataset.query;$("searchInput").value=state.query;render();refresh();$("products").scrollIntoView({behavior:"smooth"});});});
 $("categoryGrid").addEventListener("click",function(e){var b=e.target.closest("[data-category]");if(!b)return;state.category=b.dataset.category||"";syncCategory();renderProducts();renderFilters();});
 $("productGrid").addEventListener("click",function(e){var add=e.target.closest("[data-add]");if(add){addToCart(add.dataset.add);return;}var details=e.target.closest("[data-details]");if(details)openProduct(details.dataset.details);});
 function chooseStore(card){openStore(card.dataset.store);}
@@ -127,12 +154,20 @@ $("storeGrid").addEventListener("keydown",function(e){var card=e.target.closest(
 $("detailContent").addEventListener("click",function(e){var add=e.target.closest("[data-add]");if(add){addToCart(add.dataset.add);return;}var filter=e.target.closest("[data-filter-store]");if(filter){state.selectedStore=String(filter.dataset.filterStore);$("detailDialog").close();renderProducts();renderFilters();$("products").scrollIntoView({behavior:"smooth"});}});
 $("closeDetails").addEventListener("click",function(){$("detailDialog").close();});
 $("detailDialog").addEventListener("click",function(e){if(e.target===$("detailDialog"))$("detailDialog").close();});
-$("activeFilters").addEventListener("click",function(e){var b=e.target.closest("[data-clear]");if(!b)return;var k=b.dataset.clear;if(k==="query"){state.query="";$("searchInput").value="";}if(k==="category"){state.category="";syncCategory();}if(k==="store")state.selectedStore="";render();});
+$("activeFilters").addEventListener("click",function(e){var b=e.target.closest("[data-clear]");if(!b)return;var k=b.dataset.clear;if(k==="query"){state.query="";$("searchInput").value="";}if(k==="category"){state.category="";syncCategory();}if(k==="store")state.selectedStore="";if(k==="area"){state.neighborhood="";writeNeighborhood("");updateLocationLabel();}render();if(k==="area"||k==="query")refresh();});
 $("cartButton").addEventListener("click",openCart);$("mobileCartButton").addEventListener("click",openCart);$("closeCart").addEventListener("click",function(){$("cartDialog").close();});
 $("cartDialog").addEventListener("click",function(e){if(e.target===$("cartDialog"))$("cartDialog").close();});
 $("cartItems").addEventListener("click",function(e){var b=e.target.closest("[data-qty]");if(b)changeQty(b.dataset.id,Number(b.dataset.qty));});
 $("clearCart").addEventListener("click",function(){state.cart=[];renderCart();toast("تم إفراغ السلة");});
-$("locationButton").addEventListener("click",function(){toast("تحديد الحي وإذن الموقع سيضافان بعد تهيئة نطاقات التوصيل المعتمدة.");});
-renderCart();refresh();
-window.IBBMarket={refresh:refresh,getState:function(){return {stores:state.stores.length,products:state.products.length,cart:state.cart.length};}};
+$("locationButton").addEventListener("click",function(){
+ $("neighborhoodInput").value=state.neighborhood;
+ $("locationDialog").showModal();
+ $("neighborhoodInput").focus();
+});
+$("locationForm").addEventListener("submit",function(event){event.preventDefault();applyNeighborhood($("neighborhoodInput").value);$("locationDialog").close();});
+$("clearLocation").addEventListener("click",function(){$("neighborhoodInput").value="";applyNeighborhood("");$("locationDialog").close();});
+$("closeLocation").addEventListener("click",function(){$("locationDialog").close();});
+$("locationDialog").addEventListener("click",function(event){if(event.target===$("locationDialog"))$("locationDialog").close();});
+updateLocationLabel();renderCart();refresh();
+window.IBBMarket={refresh:refresh,getState:function(){return {stores:state.stores.length,products:state.products.length,cart:state.cart.length,neighborhood:state.neighborhood};}};
 })();
