@@ -15,6 +15,7 @@ on:
       - "data/staging/google-maps-workbook/**"
       - "docs/IBB_SUPABASE_*.md"
       - "docs/SUPABASE_*.md"
+      - "docs/ROUTING_PROVIDER.md"
       - ".github/workflows/ibb-platform-validation.yml"
   pull_request:
     branches: [main, integration/ibb-market-full-platform-2026-11-07, feature/ibb-directory-map-product-catalog-2026-11-07]
@@ -30,6 +31,7 @@ on:
       - "requirements-ibb-enrichment.txt"
       - "docs/IBB_SUPABASE_*.md"
       - "docs/SUPABASE_*.md"
+      - "docs/ROUTING_PROVIDER.md"
   workflow_dispatch:
 
 permissions:
