@@ -91,6 +91,15 @@
 ### Health
 - لا توجد ملاحظات في نتيجة Health Advisor وقت الفحص.
 
+## حالة مصدر D1 مقابل المستودع
+
+تم العثور على ملفي D1 المصدرين في الفرع الذي يتضمن توسعات التطبيق:
+
+- `worker/migrations/0001_shared_directory.sql` — stores/products/submissions/moderation_audit/rate_limits.
+- `worker/migrations/0002_directory_catalog_payments.sql` — directory_places/catalog_products/store_catalog_suggestions/directory_catalog_suggestions/payment_provider_configs/payment_intents/payment_events.
+
+**قيد التحقق:** محاولة قراءة `sqlite_master` من D1 عبر Cloudflare API رجعت 404 على endpoint routing، لذلك هذه مطابقة لملفات migrations في GitHub ولا تمثل فحصًا حيًا لمخطط D1. لا تفترض أن كل migration تم تطبيقها على قاعدة D1 الحية قبل فحص `d1_migrations`/`sqlite_master` من مسار إداري صالح.
+
 ## مطابقة مخطط IBB
 
 مخطط D1 المصدر في الفرع الذي يحتوي توسعات الكتالوج يتكون من 12 جدولًا عبر ملفي migration:
@@ -111,6 +120,10 @@ Supabase الحالي لديه جداول لتجار وعملاء وسلال و�
 
 لا يظهر ضمن أعمدة `public.merchants` حقل مستخدم مصادق عليه أو FK إلى `auth.users`. لذلك لا يمكن استنتاج هوية مالك التاجر أو سياسات ملكية من صفوف merchants الحالية وحدها. يلزم تعريف ربط هوية/عضوية صريح قبل سياسات authenticated.
 
+## ملكية حساب التاجر
+
+جرد أعمدة `public.merchants` لا يظهر عمود `auth_user_id` أو FK إلى `auth.users`. لا يمكن بناء سياسة ملكية تاجر على الجدول الحالي دون تعريف علاقة مستخدم/عضوية موثوقة. يجب تصميم هذا الربط قبل سياسات authenticated.
+
 ## قرار التنفيذ
 
 **المسموح حاليًا:** إعداد مخطط IBB مستقل وعقود API والاختبارات وتوثيق migration.  
@@ -126,4 +139,4 @@ Supabase الحالي لديه جداول لتجار وعملاء وسلال و�
 7. إعداد secret خادمي في Cloudflare/Edge Function بعد تصميم مسار الاتصال؛ لا تضعه في Git أو في العميل.
 8. تنفيذ shadow reads ومقارنة checksums قبل أي تحويل لمصدر البيانات.
 
-**النتيجة:** نجح الاتصال الحي والجرد والتدقيق الأولي. لم يكتمل ربط التطبيق، ولم تتغير قاعدة البيانات.
+**النتيجة:** نجح الاتصال الحي والجرد والتدقيق الأولي لقاعدة Supabase. لم يتسنَّ إجراء جرد مباشر لـ D1 عبر Cloudflare API في هذه الدفعة، لذا استندت مقارنة D1 إلى migrations المصدر في GitHub. لم يكتمل ربط التطبيق، ولم تتغير قاعدة بيانات Supabase.
