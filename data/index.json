@@ -31,5 +31,13 @@
     "store-names-021.json",
     "store-names-022.json",
     "store-names-023.json"
-  ]
+  ],
+  "verifiedProfilesDataset": {
+    "manifest": "verified-profiles/index.json",
+    "recordKey": "record_id",
+    "sourceMatchField": "source_name",
+    "reviewStatusRequired": "match",
+    "importedCoordinates": false,
+    "optionalPackage": "verified-profiles-import.zip"
+  }
 }

@@ -26,6 +26,23 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Expand and validate reviewed profile package when uploaded
+        shell: bash
+        run: |
+          if [ -f data/verified-profiles-import.zip ]; then
+            tmp="$RUNNER_TEMP/ibb-profile-package"
+            rm -rf "$tmp"
+            mkdir -p "$tmp"
+            unzip -q data/verified-profiles-import.zip -d "$tmp"
+            test -f "$tmp/data/verified-profiles/index.json"
+            mkdir -p data/verified-profiles
+            cp -a "$tmp/data/verified-profiles/." data/verified-profiles/
+            rm -f data/verified-profiles-import.zip
+          else
+            echo "Verified profile package not uploaded; publishing existing name-only directory."
+          fi
+      - name: Validate directory and profile data
+        run: node scripts/validate.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site

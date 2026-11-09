@@ -3,9 +3,29 @@ main = "src/index.js"
 compatibility_date = "2026-11-01"
 workers_dev = true
 [vars]
-ALLOWED_ORIGINS = "https://h776117073-eng.github.io,http://localhost:4173"
+ALLOWED_ORIGINS = "https://h776117073-eng.github.io,https://ibb-market.pages.dev,http://localhost:4173"
 [[d1_databases]]
 binding = "DB"
 database_name = "ibb-market-shared"
 database_id = "6f3b2015-36fd-4116-9a3b-912ea2383a75"
 migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "PRODUCTS"
+bucket_name = "ibb-market-products"
+
+# Separate Worker name for pre-production validation. Both environments intentionally
+# share the existing D1 database; do not run D1 migrations from deploy workflows.
+[env.staging]
+name = "ibb-market-api-staging"
+workers_dev = true
+[env.staging.vars]
+ALLOWED_ORIGINS = "https://h776117073-eng.github.io,https://ibb-market.pages.dev,http://localhost:4173"
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "ibb-market-shared"
+database_id = "6f3b2015-36fd-4116-9a3b-912ea2383a75"
+migrations_dir = "migrations"
+[[env.staging.r2_buckets]]
+binding = "PRODUCTS"
+bucket_name = "ibb-market-products"

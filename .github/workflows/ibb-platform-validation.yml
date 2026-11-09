@@ -1,0 +1,72 @@
+name: Ibb Platform Validation
+
+on:
+  push:
+    branches:
+      - feature/ibb-directory-map-product-catalog-2026-11-07
+      - integration/ibb-market-full-platform-2026-11-07
+      - feature/ibb-maps-workbook-staging-2026-11-08
+    paths:
+      - "index.html"
+      - "map/**"
+      - "market/**"
+      - "worker/**"
+      - "scripts/**"
+      - "data/staging/google-maps-workbook/**"
+      - "docs/IBB_SUPABASE_*.md"
+      - "docs/SUPABASE_*.md"
+      - "docs/ROUTING_PROVIDER.md"
+      - ".github/workflows/ibb-platform-validation.yml"
+  pull_request:
+    branches: [main, integration/ibb-market-full-platform-2026-11-07, feature/ibb-directory-map-product-catalog-2026-11-07]
+    paths:
+      - "index.html"
+      - "map/**"
+      - "market/**"
+      - "worker/**"
+      - "scripts/validate_platform.mjs"
+      - "scripts/stage_google_maps_workbook.py"
+      - "scripts/import_google_maps_archive.py"
+      - "scripts/tests/**"
+      - "requirements-ibb-enrichment.txt"
+      - "docs/IBB_SUPABASE_*.md"
+      - "docs/SUPABASE_*.md"
+      - "docs/ROUTING_PROVIDER.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check worker/src/index.js
+          node --check worker/src/directory-catalog.js
+          node --check worker/src/payments/adapter.js
+          node --check market/app.js
+          node --check map/app.js
+      - name: Run Worker unit tests
+        working-directory: worker
+        run: npm test
+      - name: Validate map and marketplace integration
+        run: node scripts/validate_platform.mjs
+      - name: Install Python data dependencies
+        run: python -m pip install -r requirements-ibb-enrichment.txt
+      - name: Run Python data builder tests
+        run: python -m unittest discover -s scripts/tests -v
+      - name: Decode and validate Google Maps staging shards
+        if: github.event_name != 'pull_request'
+        run: python scripts/decode_staged_google_maps_shards.py --source data/staging/google-maps-workbook --out /tmp/ibb-maps-candidates
+      - name: Dry-run guarded archive importer (no D1 writes)
+        if: github.event_name != 'pull_request'
+        run: python scripts/import_google_maps_archive.py --batch-size 250
+      - name: Compile data builder scripts
+        run: python -m compileall -q scripts

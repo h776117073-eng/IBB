@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#102a43">
+  <title>مراجعة أرشيف الدليل | إب ماركت</title>
+  <style>
+    :root{color-scheme:light;font-family:system-ui,Tahoma,Arial,sans-serif;background:#f3f6f8;color:#14283c}
+    *{box-sizing:border-box}body{margin:0}header{background:#102a43;color:white;padding:22px 16px}
+    .wrap{max-width:1050px;margin:auto;padding:18px 15px}h1{font-size:23px;margin:0 0 7px}
+    p{line-height:1.65}.muted{color:#66788a;font-size:13px}.panel,.card,.stat{background:#fff;border:1px solid #dfe7ed;border-radius:14px}
+    .panel{padding:16px;margin:14px 0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row>*{min-width:0}input,select,button{font:inherit;border-radius:9px;padding:11px}
+    input,select{border:1px solid #ccd7e0;background:#fff;color:#14283c}
+    button{border:0;background:#126e67;color:#fff;font-weight:700;cursor:pointer}
+    button.secondary{background:#eaf1f4;color:#234257}button:disabled{opacity:.45;cursor:not-allowed}
+    label{display:block;font-weight:700;font-size:13px;margin-bottom:7px}input[type=password]{width:100%}
+    .key-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px}
+    .status{min-height:25px;color:#126e67;font-size:13px;margin-top:8px}
+    .note{background:#fff8e6;border:1px solid #f0dfb1;border-radius:12px;padding:12px;font-size:13px;line-height:1.7}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0}
+    .stat{padding:12px}.stat strong{display:block;font-size:21px}.stat span{font-size:12px;color:#66788a}
+    .filters{display:grid;grid-template-columns:minmax(0,1fr) 190px auto;gap:9px}
+    .cards{display:grid;gap:10px;margin-top:14px}.card{padding:14px}
+    .card h2{font-size:17px;margin:0 0 8px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+    .tag{font-size:11px;padding:4px 8px;border-radius:20px;background:#edf2f5;color:#345064}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 14px;font-size:13px;line-height:1.6;color:#3f5364}
+    .details span{overflow-wrap:anywhere}.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+    a.map-link{display:inline-block;text-decoration:none;background:#e7f3f1;color:#126e67;border-radius:9px;padding:9px 12px;font-weight:700;font-size:13px}
+    .empty{background:white;padding:22px;border-radius:12px;text-align:center;color:#66788a}
+    .pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+    @media(max-width:650px){.stats{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr}.key-row{grid-template-columns:1fr}.details{grid-template-columns:1fr}.wrap{padding:12px}}
+  </style>
+</head>
+<body>
+<header><div class="wrap"><h1>مراجعة أرشيف منشآت إب</h1><div>لوحة داخلية لفرز السجلات المستوردة ومقارنتها يدويًا بالمصادر.</div></div></header>
+<main class="wrap">
+  <section class="panel">
+    <label for="adminKey">مفتاح الإدارة</label>
+    <div class="key-row"><input id="adminKey" type="password" autocomplete="off" placeholder="أدخل مفتاح الإدارة"><button id="connect">اتصال آمن</button></div>
+    <div id="status" class="status" role="status" aria-live="polite">أدخل مفتاح الإدارة للبدء.</div>
+    <p class="muted">يُستخدم المفتاح في ذاكرة الصفحة فقط، ولا يُحفظ في الجهاز أو في التخزين المحلي.</p>
+  </section>
+  <div class="note"><strong>تنبيه:</strong> هذه أداة مراجعة فقط. لا توافق على السجلات ولا تنشرها ولا تعدّل قاعدة البيانات. وجود Place ID أو رقم هاتف أو عنوان لا يثبت وحده صحة السجل أو ملكية النشاط. كما أن نطاق إب الجغرافي المعروض تقريبي وليس حدًا إداريًا رسميًا.</div>
+  <section id="workspace" hidden>
+    <div class="stats">
+      <div class="stat"><strong id="totalCount">—</strong><span>كل المرشحين</span></div>
+      <div class="stat"><strong id="insideCount">—</strong><span>داخل صندوق إب التقريبي</span></div>
+      <div class="stat"><strong id="outsideCount">—</strong><span>إحداثيات خارج الصندوق</span></div>
+      <div class="stat"><strong id="missingCount">—</strong><span>بلا إحداثيات</span></div>
+    </div>
+    <section class="panel">
+      <form id="searchForm" class="filters">
+        <input id="searchText" type="search" placeholder="ابحث بالاسم أو الحي أو الهاتف أو Place ID" aria-label="بحث في المرشحين">
+        <select id="areaFilter" aria-label="تصفية الموقع">
+          <option value="ibb">داخل نطاق إب التقريبي</option>
+          <option value="missing">موقع غير متوفر</option>
+          <option value="outside">إحداثيات خارج النطاق</option>
+          <option value="all">كل المرشحين</option>
+        </select>
+        <button type="submit">بحث وتصفية</button>
+      </form>
+      <p class="muted">الافتراضي يعرض فقط السجلات التي لها إحداثيات داخل صندوق جغرافي تقريبي حول مدينة إب. افتح السجلات الأخرى من المرشحات عند الحاجة.</p>
+    </section>
+    <div id="results" class="cards" aria-live="polite"></div>
+    <div class="pagination"><button id="previous" class="secondary" disabled>السابق</button><span id="pageInfo" class="muted">—</span><button id="next" disabled>التالي</button></div>
+  </section>
+</main>
+<script>
+(function(){
+  "use strict";
+  var API="https://ibb-market-api.aicreativestudio.workers.dev";
+  var key="",offset=0,limit=30,total=0;
+  var $=function(id){return document.getElementById(id);};
+  function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;}
+  function say(text){$("status").textContent=text;}
+  function n(value){return Number(value||0).toLocaleString("ar");}
+  function locationLabel(p){
+    if(p.latitude==null||p.longitude==null)return "لا توجد إحداثيات";
+    var inside=p.latitude>=13.82&&p.latitude<=14.08&&p.longitude>=44.05&&p.longitude<=44.32;
+    return inside?"داخل صندوق إب التقريبي":"خارج صندوق إب التقريبي";
+  }
+  function mapHref(p){
+    var params=new URLSearchParams({api:"1",query:[p.name,p.address,p.neighborhood,"Yemen"].filter(Boolean).join(", ")});
+    if(p.place_id)params.set("query_place_id",p.place_id);
+    return "https://www.google.com/maps/search/?"+params.toString();
+  }
+  function card(p){
+    var c=el("article","card");
+    c.appendChild(el("h2", "", p.name||"اسم غير متوفر"));
+    var tags=el("div","tags");
+    tags.appendChild(el("span","tag",p.kind||"OTHER"));
+    tags.appendChild(el("span","tag",p.location_precision==="EXACT"?"موقع دقيق":p.location_precision==="APPROXIMATE"?"موقع تقريبي":"الموقع مفقود"));
+    tags.appendChild(el("span","tag",locationLabel(p)));
+    tags.appendChild(el("span","tag","غير موثّق — بحاجة إلى مراجعة"));
+    c.appendChild(tags);
+    var details=el("div","details");
+    [
+      ["التصنيف",p.category],["الحي/المنطقة",p.neighborhood||p.district],["العنوان",p.address],
+      ["الهاتف",p.phone],["Plus Code",p.plus_code],["Google Place ID",p.place_id],
+      ["الإحداثيات",p.latitude==null?"غير متوفرة":p.latitude+", "+p.longitude],
+      ["المصدر",p.source_name],["حالة المصدر",p.source_status],["رقم السجل الأصلي",p.source_record_id]
+    ].forEach(function(pair){var s=el("span","");s.textContent=pair[0]+": "+(pair[1]||"—");details.appendChild(s);});
+    c.appendChild(details);
+    var actions=el("div","actions");
+    var a=el("a","map-link","فتح نتيجة للمقارنة في Google Maps");
+    a.href=mapHref(p);a.target="_blank";a.rel="noopener noreferrer";
+    actions.appendChild(a);
+    c.appendChild(actions);
+    return c;
+  }
+  async function load(){
+    if(key.length<32){say("أدخل مفتاح الإدارة الصحيح أولًا.");return;}
+    say("جارٍ جلب السجلات...");
+    $("results").replaceChildren();
+    var params=new URLSearchParams({area:$("areaFilter").value,limit:String(limit),offset:String(offset),q:$("searchText").value.trim()});
+    try{
+      var response=await fetch(API+"/api/v1/admin/directory/candidates?"+params.toString(),{headers:{Accept:"application/json",Authorization:"Bearer "+key},cache:"no-store"});
+      var data=await response.json();
+      if(!response.ok)throw new Error(data.message||data.error||("HTTP "+response.status));
+      total=Number(data.total||0);
+      $("totalCount").textContent=n(data.summary.total);
+      $("insideCount").textContent=n(data.summary.inside_ibb);
+      $("outsideCount").textContent=n(data.summary.outside_ibb);
+      $("missingCount").textContent=n(data.summary.missing_coordinates);
+      (data.items||[]).forEach(function(p){$("results").appendChild(card(p));});
+      if(!(data.items||[]).length)$("results").appendChild(el("div","empty","لا توجد سجلات في هذا القسم أو لا توجد نتائج مطابقة."));
+      $("pageInfo").textContent="المعروض "+n(total?offset+1:0)+"–"+n(Math.min(offset+limit,total))+" من "+n(total);
+      $("previous").disabled=offset<=0;$("next").disabled=!data.has_more;
+      $("workspace").hidden=false;
+      say("تم الاتصال. هذه القائمة للفرز والمراجعة فقط ولا تغيّر حالة السجلات.");
+    }catch(error){
+      say("تعذر تحميل القائمة: "+error.message);
+      if(error.message==="UNAUTHORIZED")$("workspace").hidden=true;
+    }
+  }
+  $("connect").addEventListener("click",function(){key=$("adminKey").value.trim();offset=0;load();});
+  $("adminKey").addEventListener("keydown",function(e){if(e.key==="Enter")$("connect").click();});
+  $("searchForm").addEventListener("submit",function(e){e.preventDefault();offset=0;load();});
+  $("areaFilter").addEventListener("change",function(){offset=0;load();});
+  $("previous").addEventListener("click",function(){offset=Math.max(0,offset-limit);load();});
+  $("next").addEventListener("click",function(){offset+=limit;load();});
+})();
+</script>
+</body>
+</html>

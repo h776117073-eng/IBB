@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102b25">
+  <meta name="description" content="ماركت إب — استكشف المتاجر والمنتجات المعتمدة في مدينة إب.">
+  <title>ماركت إب | تسوّق محلي من إب</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="announcement"><span class="announcement-dot"></span><span>إطلاق تجريبي في مدينة إب</span><span class="announcement-separator">•</span><span>نعرض المتاجر والمنتجات التي تمت مراجعة بياناتها فقط</span></div>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#home" aria-label="ماركت إب — الرئيسية"><span class="brand-symbol">إب</span><span class="brand-copy"><strong>ماركت إب</strong><small>السوق المحلي، أقرب إليك</small></span></a>
+      <nav class="desktop-nav" aria-label="التنقل الرئيسي"><a class="active" href="#home">الرئيسية</a><a href="#stores">المتاجر</a><a href="#products">المنتجات</a><a href="../map/">الخريطة</a><a href="#how-it-works">كيف يعمل</a></nav>
+      <div class="header-actions">
+        <button class="location-button" id="locationButton" type="button" aria-label="موقع التسوق"><span class="location-pin">⌖</span><span><small>منطقة التسوق</small><strong>مدينة إب</strong></span><span class="chevron">⌄</span></button>
+        <button class="cart-button" id="cartButton" type="button" aria-label="فتح السلة التجريبية"><span class="cart-icon">▱</span><span class="cart-label">السلة</span><b id="cartCount" class="cart-count">0</b></button>
+      </div>
+    </div>
+  </header>
+  <main id="home">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <div class="hero-kicker"><span></span> تسوّق من مدينتك</div>
+        <h1>احتياجاتك من<br><em>متاجر إب القريبة.</em></h1>
+        <p>اكتشف ما تعرضه المتاجر المحلية، وقارن المنتجات والأسعار قبل أن تتحرك. نبدأ ببيانات المتاجر التي تمت مراجعتها.</p>
+        <a class="hero-cta" href="#products">اكتشف المنتجات <span>←</span></a>
+        <div class="hero-proof"><span class="proof-icon">✓</span><span>بيانات واضحة بدل قوائم عشوائية</span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+        <div class="art-market-card">
+          <div class="market-card-top"><span class="mini-mark">إب</span><span class="live-pill"><i></i> محلي</span></div>
+          <div class="market-basket">🧺</div>
+          <div class="market-lines"><b></b><span></span><span></span></div>
+          <div class="market-card-bottom"><span>من متاجر مدينتك</span><strong>قريب منك</strong></div>
+        </div>
+        <div class="floating-note note-top"><span>⌖</span><div><b>مدينة إب</b><small>نطاق البداية</small></div></div>
+        <div class="floating-note note-bottom"><span>✓</span><div><b>مراجعة البيانات</b><small>قبل عرضها</small></div></div>
+        <div class="art-spark spark-one">✳</div><div class="art-spark spark-two">✦</div>
+      </div>
+    </section>
+    <section class="search-section wrap" aria-label="البحث">
+      <div class="search-intro"><strong>ما الذي تبحث عنه؟</strong><span>ابحث باسم المنتج أو المتجر</span></div>
+      <form class="search-box" id="searchForm" role="search"><span class="search-symbol" aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="مثلاً: قهوة، أرز، متجر..." autocomplete="off" aria-label="ابحث عن منتج أو متجر"><button type="submit">بحث</button></form>
+      <div class="search-hint"><span>جرّب</span><button type="button" data-query="قهوة">قهوة</button><button type="button" data-query="أرز">أرز</button><button type="button" data-query="خضروات">خضروات</button></div>
+    </section>
+    <section class="category-section wrap" aria-labelledby="categoryTitle">
+      <div class="section-heading"><div><span class="eyebrow">تصفّح بسهولة</span><h2 id="categoryTitle">تسوق حسب الفئة</h2></div><span class="section-note">اختر فئة لتصفية المنتجات</span></div>
+      <div class="category-grid" id="categoryGrid">
+        <button class="category-tile selected" type="button" data-category=""><span class="category-icon all">✳</span><b>الكل</b></button>
+        <button class="category-tile" type="button" data-category="بقالة"><span class="category-icon grocery">▤</span><b>بقالة</b></button>
+        <button class="category-tile" type="button" data-category="خضروات"><span class="category-icon veg">♧</span><b>خضروات</b></button>
+        <button class="category-tile" type="button" data-category="فواكه"><span class="category-icon fruit">◉</span><b>فواكه</b></button>
+        <button class="category-tile" type="button" data-category="مخبوزات"><span class="category-icon bakery">⌂</span><b>مخبوزات</b></button>
+        <button class="category-tile" type="button" data-category="منزل"><span class="category-icon home">⌂</span><b>للمنزل</b></button>
+      </div>
+    </section>
+    <section class="content-section wrap" id="stores">
+      <div class="section-heading"><div><span class="eyebrow">من حولك</span><h2>متاجر في مدينة إب</h2><p>المتاجر المنشورة بعد مراجعة بياناتها فقط.</p></div><a class="text-link" href="#products">تصفح المنتجات <span>←</span></a></div>
+      <div class="store-grid" id="storeGrid" aria-live="polite"><div class="loading-card"><span class="loader"></span><b>نحمّل المتاجر المعتمدة</b></div></div>
+    </section>
+    <section class="content-section products-section" id="products">
+      <div class="wrap">
+        <div class="section-heading"><div><span class="eyebrow">من السوق المحلي</span><h2>منتجات معروضة</h2><p>السعر والعملة كما أدخلهما المتجر واعتمدتهما المنصة.</p></div><span class="result-count" id="productCount">جارٍ التحميل…</span></div>
+        <div class="active-filters" id="activeFilters"></div>
+        <div class="product-grid" id="productGrid" aria-live="polite"><div class="loading-card"><span class="loader"></span><b>نحمّل المنتجات</b></div></div>
+      </div>
+    </section>
+    <section class="trust-section wrap" id="how-it-works">
+      <div class="trust-icon">✦</div>
+      <div><span class="eyebrow">الثقة أولاً</span><h2>لا نعرض الاسم وحده على أنه متجر موثوق.</h2><p>قوائم الأسماء القديمة ليست مخزوناً ولا دليلاً على توفر المنتجات. في هذه الواجهة تظهر فقط السجلات المعتمدة من واجهة البيانات المشتركة، وتظل ملكية المتجر بحاجة إلى تحقق مستقل.</p></div>
+      <div class="trust-links"><a href="./merchant/index.html" class="secondary-link">أنت صاحب متجر؟ أضف متجرك <span>↗</span></a><a href="../index.html" class="secondary-link muted-link">افتح دليل إب الحالي <span>↗</span></a></div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="wrap footer-inner"><a class="brand footer-brand" href="#home"><span class="brand-symbol">إب</span><span class="brand-copy"><strong>ماركت إب</strong><small>نبني سوقاً محلياً أوضح</small></span></a><p>نسخة تجريبية للعرض والاستكشاف. لا تنفّذ طلبات شراء أو مدفوعات.</p><span>© ماركت إب</span></div></footer>
+  <nav class="mobile-nav" aria-label="التنقل السفلي"><a class="active" href="#home"><span>⌂</span>الرئيسية</a><a href="#stores"><span>▦</span>المتاجر</a><a href="#products"><span>▤</span>المنتجات</a><button type="button" id="mobileCartButton"><span>▱<i id="mobileCartCount">0</i></span>السلة</button></nav>
+  <dialog class="detail-dialog location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
+    <div class="dialog-header"><div><span class="eyebrow">منطقة التسوق</span><h2 id="locationDialogTitle">اختر الحي</h2></div><button class="close-button" id="closeLocation" type="button" aria-label="إغلاق">×</button></div>
+    <form id="locationForm" class="location-form">
+      <label for="neighborhoodInput">اسم الحي أو المنطقة في مدينة إب</label>
+      <input id="neighborhoodInput" name="neighborhood" type="text" maxlength="80" autocomplete="off" placeholder="مثلاً: الظهار أو شارع العدين">
+      <p class="location-help">اكتب اسم الحي كما يعرفه السكان. يمكنك ترك الحقل فارغًا لعرض مدينة إب دون تصفية.</p>
+      <div class="location-actions"><button type="button" id="clearLocation" class="location-clear">عرض مدينة إب كاملة</button><button type="submit" class="location-apply">اعتماد الحي</button></div>
+    </form>
+  </dialog>
+  <dialog class="cart-dialog" id="cartDialog">
+    <div class="dialog-header"><div><span class="eyebrow">مراجعة الاختيار</span><h2>سلتك التجريبية</h2></div><button class="close-button" id="closeCart" type="button" aria-label="إغلاق">×</button></div>
+    <div id="cartItems" class="cart-items"></div>
+    <div class="cart-summary"><span>الإجمالي التقريبي</span><strong id="cartTotal">0 ر.ي</strong></div>
+    <p class="demo-notice">هذه سلة محلية للمعاينة فقط. لا يتم إرسال طلب أو حجز مخزون أو خصم أي مبلغ.</p>
+    <button class="full-button" id="clearCart" type="button">إفراغ السلة</button>
+  </dialog>
+  <dialog class="detail-dialog" id="detailDialog">
+    <div class="dialog-header"><div><span class="eyebrow">من السوق المحلي</span><h2 id="detailTitle">التفاصيل</h2></div><button class="close-button" id="closeDetails" type="button" aria-label="إغلاق">×</button></div>
+    <div id="detailContent" class="detail-content"></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
