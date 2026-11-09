@@ -170,7 +170,7 @@ test("public map output omits unverified email, website and machine-readable des
     }
   };
   const response = await worker.fetch(new Request(
-    "https://worker.test/api/v1/map/places?bbox=44.05,13.82,44.32,14.08&zoom=20&limit=500"
+    "https://worker.test/api/v1/map/places?bbox=43.5,13.7,45.0,14.47&zoom=20&limit=500"
   ), { DB });
   assert.equal(response.status, 200);
   const data = await response.json();
