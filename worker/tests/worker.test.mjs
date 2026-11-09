@@ -175,6 +175,7 @@ test("public map output omits unverified email, website and machine-readable des
   assert.equal(response.status, 200);
   const data = await response.json();
   const item = data.items[0];
+  assert.equal(data.api_version, "3");
   assert.equal(item.description, null);
   assert.equal(Object.hasOwn(item, "email"), false);
   assert.equal(Object.hasOwn(item, "website_url"), false);
