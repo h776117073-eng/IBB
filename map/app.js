@@ -300,8 +300,7 @@
       return;
     }
     map = L.map("map", {
-      center: center, zoom: 9, minZoom: 8, maxZoom: 19, zoomControl: true, preferCanvas: true,
-      maxBounds: governorateBounds, maxBoundsViscosity: 0.8
+      center: center, zoom: 9, minZoom: 8, maxZoom: 19, zoomControl: true, preferCanvas: true
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
