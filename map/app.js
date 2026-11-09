@@ -352,7 +352,6 @@
       navigator.geolocation.getCurrentPosition(function (position) {
         var point = { lat: position.coords.latitude, lng: position.coords.longitude };
         setRouteOrigin(point, "موقعي الحالي");
-        map.setView([point.lat, point.lng], 16);
       }, function () {
         statusEl.textContent = "لم نتمكن من تحديد موقعك. تحقق من إذن الموقع.";
       }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
