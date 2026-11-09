@@ -1,6 +1,6 @@
 import { paymentReadiness, constantTimeEqual } from "./payments/adapter.js";
 
-const API_VERSION = "2";
+const API_VERSION = "3";
 const KINDS = new Set(["BUSINESS", "LANDMARK", "STREET", "NEIGHBORHOOD", "PUBLIC_SERVICE", "OTHER"]);
 
 export function normalizeText(value) {
