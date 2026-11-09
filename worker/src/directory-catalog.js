@@ -25,13 +25,23 @@ export function clusterStep(zoom) {
   return 0;
 }
 
-export function classifyEntityKind(name, category) {
-  const text = normalizeText(String(name || "") + " " + String(category || ""));
-  if (/(شارع|طريق|جسر|نفق|دوار|تقاطع|جولة|ميدان)/.test(text)) return "STREET";
-  if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة)/.test(text)) return "NEIGHBORHOOD";
-  if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|سوق|قلعة|حصن|أثر|مدرسة تاريخية)/.test(text)) return "LANDMARK";
-  if (/(مكتبة عامة|مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام)/.test(text)) return "PUBLIC_SERVICE";
-  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|مكتبة|ملابس|جوالات|إلكترونيات)/.test(text)) return "BUSINESS";
+export function classifyEntityKind(name, category = "", sourceCategory = "") {
+  const nameText = normalizeText(name);
+  const categoryText = normalizeText(String(category || "") + " " + String(sourceCategory || ""));
+  const combinedText = normalizeText(nameText + " " + categoryText);
+
+  // Explicit source categories outrank street words embedded in business names.
+  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات|قطع غيار|تاجر|وكالة|فندق|بنك|مقهى|مطبعة|حلاق|تجميل|مورد|سوبرماركت|سوق|store|shop|market|restaurant|cafe|coffee|bank|agency|dealer|repair|wholesaler|supplier|salon|hotel|pharmacy|bakery|grocery|supermarket|butcher|printer|hardware|parts|furniture|electronics|cell phone|mobile|clothing|shoe|jewelry|travel|amusement|barber|beauty|advertising|business center|call center|camera|candy|cattle|boat tour|brunch|buffet|fast food|car wash|car rental|car leasing|car detailing|chicken|cake|cafeteria|barbecue|book store|boot store|bridal|clothes|structural engineer|radio broadcaster)/i.test(categoryText)) return "BUSINESS";
+  if (/(مكتبة عامة|مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام|hospital|clinic|school|university|college|library|government office|public service|police station|non-governmental organization)/i.test(categoryText)) return "PUBLIC_SERVICE";
+  if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|قلعة|حصن|أثر|جسر|park|garden|bridge|museum|historical landmark|tourist attraction|place of worship|monument|theme park|botanical garden)/i.test(categoryText)) return "LANDMARK";
+  if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة|neighborhood|district|suburb|village|locality|residential area)/i.test(categoryText)) return "NEIGHBORHOOD";
+
+  if (/^(شارع|طريق|نفق|دوار|تقاطع|جولة|ميدان|street|road|route|highway|intersection|roundabout)(?:\s|$)/i.test(nameText)) return "STREET";
+  if (/(محل|متجر|مؤسسة|شركة|مطعم|بقالة|صيدلية|مخبز|معرض|ورشة|مركز تجاري|ملابس|جوالات|إلكترونيات|قطع غيار|تاجر|وكالة|فندق|بنك|مقهى|مطبعة|حلاق|تجميل|مورد|سوبرماركت|store|shop|restaurant|cafe|pharmacy|bakery|grocery|supermarket|butcher|hotel|bank)/i.test(nameText)) return "BUSINESS";
+  if (/(مكتبة عامة|مستشفى|مركز صحي|مستوصف|مدرسة|جامعة|كلية|مكتب حكومي|مركز شرطة|مرفق عام|hospital|clinic|school|university|college|library|government office)/i.test(nameText)) return "PUBLIC_SERVICE";
+  if (/(جامع|مسجد|مقبرة|مزار|متحف|حديقة|منتزه|ساحة عامة|قلعة|حصن|أثر|جسر|park|garden|bridge|museum|monument)/i.test(nameText)) return "LANDMARK";
+  if (/(حارة|حي\s|منطقة سكنية|قرية|عزلة|محلة|neighborhood|district|suburb|village|locality)/i.test(nameText)) return "NEIGHBORHOOD";
+  if (/(شارع|طريق|نفق|دوار|تقاطع|جولة|ميدان|street|road|route|highway|intersection|roundabout)/i.test(combinedText)) return "STREET";
   return "OTHER";
 }
 
