@@ -106,6 +106,7 @@ async function listMapPlaces(url, env, origin) {
   const where = [
     "visibility_status='PUBLISHED'",
     "verification_status='VERIFIED_MATCH'",
+    "is_public=1",
     "latitude IS NOT NULL",
     "longitude IS NOT NULL",
     "latitude BETWEEN ? AND ?",
@@ -156,7 +157,7 @@ async function getMapPlace(id, env, origin) {
   if (!id || id.length > 128) return jsonResponse({ ok: false, error: "INVALID_ID" }, 400, origin);
   const row = await env.DB.prepare(
     "SELECT id,name,kind,category,address,district,neighborhood,phone,email,website_url,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
-    "FROM directory_places WHERE id=? AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"
+    "FROM directory_places WHERE id=? AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH' AND is_public=1"
   ).bind(id).first();
   return row ? jsonResponse({ ok: true, item: mapPlaceOut(row) }, 200, origin) : jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
 }
@@ -235,7 +236,7 @@ async function storeCatalogSuggestions(storeId, env, origin) {
 async function directoryCatalogSuggestions(placeId, env, origin) {
   if (!placeId || placeId.length > 128) return jsonResponse({ ok: false, error: "INVALID_PLACE_ID" }, 400, origin);
   const place = await env.DB.prepare(
-    "SELECT id,name,kind,category,address,neighborhood FROM directory_places WHERE id=? AND kind='BUSINESS' AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"
+    "SELECT id,name,kind,category,address,neighborhood FROM directory_places WHERE id=? AND kind='BUSINESS' AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH' AND is_public=1"
   ).bind(placeId).first();
   if (!place) return jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
   const result = await env.DB.prepare(
@@ -549,7 +550,7 @@ async function importStats(env, origin) {
   try {
     const queries = [
       ["directory_places","SELECT COUNT(*) AS total FROM directory_places"],
-      ["published_places","SELECT COUNT(*) AS total FROM directory_places WHERE visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH'"],
+      ["published_places","SELECT COUNT(*) AS total FROM directory_places WHERE visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH' AND is_public=1"],
       ["catalog_products","SELECT COUNT(*) AS total FROM catalog_products"],
       ["published_products","SELECT COUNT(*) AS total FROM catalog_products WHERE quality_status='PUBLISHED'"],
       ["products_with_images","SELECT COUNT(*) AS total FROM catalog_products WHERE image_status='READY'"],
