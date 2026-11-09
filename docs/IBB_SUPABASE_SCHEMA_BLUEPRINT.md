@@ -178,3 +178,19 @@ D1 يحتوي `payment_provider_configs`, `payment_intents`, `payment_events`. �
 - لا تُنشئ endpoint intent/webhook/refund لمجرد وجود الجداول؛ adapter الحالي يعرض readiness ويثبت `checkout_enabled=false`.
 - لا تفعل الدفع إلا بعد اختيار مزود محلي واختبارات HMAC، replay/idempotency، refund، reconciliation، وحماية المبالغ بعملة YER.
 - لا تربط تلقائيًا `payment_intents` مع `public.orders`؛ اختلاف نموذج المرجع يجب حسمه أولًا.
+
+
+## 9. وسيلة الربط مع Cloudflare Worker
+
+المسار الموصى به هو Cloudflare Hyperdrive وليس كشف `ibb` للواجهة عبر Supabase Data API:
+- استخدم اتصال Supabase المباشر Direct connection داخل Hyperdrive؛ Hyperdrive يقوم بإدارة pooling.
+- أنشئ DB role مستقلًا باسم `ibb_worker` بصلاحيات أقل ما يمكن على مخطط `ibb` فقط، ولا تمنحه `postgres` أو صلاحيات على مخطط التجارة الحالي.
+- استخدم Postgres driver `pg` مثبت الإصدار في Worker، وbinding باسم `HYPERDRIVE`، واقرأ connection string من `env.HYPERDRIVE.connectionString`.
+- لا تضع connection string أو كلمة المرور في Git أو `wrangler.toml` أو الواجهة. ولا تستخدم service-role key لهذا الاتصال.
+- يجب اختبار الاتصال وTLS والمهلات والـ pooling، ثم إجراء shadow reads قبل توجيه أي endpoint إلى PostgreSQL.
+- وقت إنشاء هذه المواصفة، حساب Cloudflare لا يحتوي Hyperdrive configuration، وWorker config لا يحتوي binding أو PostgreSQL driver. لم يتم إنشاء DB role أو connection string أو Hyperdrive resource.
+
+مراجع التنفيذ:
+- https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/supabase/
+- https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/
+- https://supabase.com/docs/guides/api/using-custom-schemas
