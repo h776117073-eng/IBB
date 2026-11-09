@@ -81,6 +81,8 @@ function pageParams(url, maxLimit) {
 function mapPlaceOut(row) {
   let geometry = null;
   let openingHours = {};
+  let description = String(row.description || "").trim();
+  if (!description || description === "null" || /^[\\[{]/.test(description)) description = null;
   try { openingHours = JSON.parse(row.opening_hours_json || "{}"); } catch (_) { openingHours = {}; }
   if (row.geometry_json) {
     try { geometry = JSON.parse(row.geometry_json); } catch (_) { geometry = null; }
@@ -93,10 +95,8 @@ function mapPlaceOut(row) {
     address: row.address,
     district: row.district,
     neighborhood: row.neighborhood,
-    phone: row.phone,
-    email: row.email,
-    website_url: row.website_url,
-    description: row.description,
+    phone: row.phone || null,
+    description,
     cover_image_url: row.cover_image_url,
     opening_hours: openingHours,
     rating: row.rating == null ? null : Number(row.rating),
@@ -159,7 +159,7 @@ async function listMapPlaces(url, env, origin) {
   }
 
   const page = pageParams(url, 500);
-  const sql = "SELECT id,name,kind,category,address,district,neighborhood,phone,email,website_url,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
+  const sql = "SELECT id,name,kind,category,address,district,neighborhood,phone,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
     "FROM directory_places WHERE " + whereSql + " ORDER BY name COLLATE NOCASE LIMIT ? OFFSET ?";
   const result = await env.DB.prepare(sql).bind(...values, page.limit, page.offset).all();
   const rows = result.results || [];
@@ -178,7 +178,7 @@ async function listMapPlaces(url, env, origin) {
 async function getMapPlace(id, env, origin) {
   if (!id || id.length > 128) return jsonResponse({ ok: false, error: "INVALID_ID" }, 400, origin);
   const row = await env.DB.prepare(
-    "SELECT id,name,kind,category,address,district,neighborhood,phone,email,website_url,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
+    "SELECT id,name,kind,category,address,district,neighborhood,phone,description,cover_image_url,opening_hours_json,rating,review_count,operational_status,source_name,source_category,plus_code,osm_source_id,latitude,longitude,location_precision,geometry_type,geometry_json,maps_url,is_commercial " +
     "FROM directory_places WHERE id=? AND visibility_status='PUBLISHED' AND verification_status='VERIFIED_MATCH' AND is_public=1"
   ).bind(id).first();
   return row ? jsonResponse({ ok: true, item: mapPlaceOut(row) }, 200, origin) : jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, origin);
