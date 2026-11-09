@@ -33,6 +33,8 @@ test("Arabic map entity classifier distinguishes streets, neighborhoods and plac
   assert.equal(classifyEntityKind("حديقة إب", "موقع", "City park"), "LANDMARK");
   assert.equal(classifyEntityKind("المكتبة العامة", "مكتبة عامة", "Public library"), "PUBLIC_SERVICE");
   assert.equal(classifyEntityKind("شارع تعز", "موقع", "Street"), "STREET");
+  assert.equal(classifyEntityKind("موقف الباص", "نشاط تجاري", "Bus stop"), "PUBLIC_SERVICE");
+  assert.equal(classifyEntityKind("عمارة سكنية", "نشاط تجاري", "Apartment building"), "OTHER");
 });
 
 
