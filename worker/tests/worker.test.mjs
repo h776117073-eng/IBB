@@ -129,3 +129,53 @@ test("published place statistics count only explicitly public records", async ()
   assert.ok(publishedQuery);
   assert.match(publishedQuery, /is_public=1/);
 });
+
+
+test("public map output omits unverified email, website and machine-readable descriptions", async () => {
+  const row = {
+    id: "public-test",
+    name: "بقالة الاختبار",
+    kind: "BUSINESS",
+    category: "بقالة",
+    address: "إب، اليمن",
+    district: "إب",
+    neighborhood: "الظهار",
+    phone: "+967700000000",
+    email: "abc@xyz.com",
+    website_url: "http://www.amgad.com/",
+    description: "[{\"id\":\"accessibility\"}]",
+    cover_image_url: null,
+    opening_hours_json: "{}",
+    rating: null,
+    review_count: 0,
+    operational_status: "UNKNOWN",
+    source_name: "Google Maps",
+    source_category: "Grocery store",
+    plus_code: null,
+    osm_source_id: null,
+    latitude: 13.9,
+    longitude: 44.18,
+    location_precision: "ROOFTOP",
+    geometry_type: null,
+    geometry_json: null,
+    maps_url: "https://www.google.com/maps/?q=13.9,44.18",
+    is_commercial: 1
+  };
+  const DB = {
+    prepare() {
+      return {
+        bind() { return this; },
+        all: async () => ({ results: [row] })
+      };
+    }
+  };
+  const response = await worker.fetch(new Request(
+    "https://worker.test/api/v1/map/places?bbox=44.05,13.82,44.32,14.08&zoom=20&limit=500"
+  ), { DB });
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  const item = data.items[0];
+  assert.equal(item.description, null);
+  assert.equal(Object.hasOwn(item, "email"), false);
+  assert.equal(Object.hasOwn(item, "website_url"), false);
+});
