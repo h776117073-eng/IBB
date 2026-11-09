@@ -93,3 +93,12 @@
 - لم يتغير `main` أو نشر Cloudflare Worker إنتاجي في هذه الدفعة.
 
 **الخلاصة:** الاتصال الحي والجرد ومخطط المجال وخريطة API موثقة؛ اخترنا Hyperdrive كمسار اتصال رسمي لـ Worker. لا توجد Hyperdrive configuration أو DB login خاص بـ IBB حتى الآن، لذلك ربط التطبيق لم يكتمل بعد. لم ينفذ D1 schema introspection المباشر عبر Cloudflare REST لأن endpoint رجع 404 routing، لذلك اعتمدت مطابقة بنية D1 على migration files checked into GitHub، وليس على جرد حي لـ D1. البوابة التالية هي اعتماد تصميم `ibb` المنفصل وعقود التحويل والاختبارات قبل أي تغيير في قاعدة الإنتاج.
+
+
+## 9. تحقق الاتصال الفعلي
+
+- Supabase project أصبح ACTIVE_HEALTHY، وتم جرد مخطط `public` مباشرة.
+- لم يتم إنشاء Hyperdrive resource؛ جرد Cloudflare Hyperdrive أعاد قائمة فارغة.
+- لم يتم إعداد DB login محدود لـ IBB أو binding في Wrangler أو إضافة driver PostgreSQL.
+- لا يوجد اتصال حي من Worker إلى Supabase، ولا تزال D1 هي مصدر الحقيقة.
+- لم يتسنَّ فحص `sqlite_master` على D1 عبر Cloudflare REST API في هذه الدفعة (404 routing). تمت مطابقة جداول التطبيق مع ملفات migrations في GitHub فقط.
