@@ -180,3 +180,22 @@ test("public map output omits unverified email, website and machine-readable des
   assert.equal(Object.hasOwn(item, "email"), false);
   assert.equal(Object.hasOwn(item, "website_url"), false);
 });
+
+
+test("map endpoint accepts a wide viewport needed for the full governorate on desktop", async () => {
+  const DB = {
+    prepare() {
+      return {
+        bind() { return this; },
+        all: async () => ({ results: [] })
+      };
+    }
+  };
+  const response = await worker.fetch(new Request(
+    "https://worker.test/api/v1/map/places?bbox=43.0,13.5,45.5,14.5&zoom=9&limit=500"
+  ), { DB });
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.api_version, "3");
+  assert.deepEqual(data.items, []);
+});
