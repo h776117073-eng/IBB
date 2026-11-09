@@ -11,7 +11,7 @@ The interactive map opens on the full Ibb Governorate extent, not only Ibb city.
 
 Reference: https://www.openstreetmap.org/relation/383900
 
-The map uses this bounding envelope for its initial view and governorate reset. It is a rectangular extent, not a clipped administrative polygon; a simplified boundary overlay can be added separately. The API accepts a viewport envelope up to 2 degrees in either dimension so the governorate remains usable on portrait and wide screens.
+The map uses this bounding envelope for its initial view and governorate reset. It is a rectangular extent, not a clipped administrative polygon; a simplified boundary overlay can be added separately. The API accepts a viewport envelope up to 3 degrees in either dimension so the governorate remains usable on portrait and wide screens.
 
 ## Route engine
 
