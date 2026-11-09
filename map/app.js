@@ -1,6 +1,9 @@
 (function () {
   "use strict";
-  var API = "https://ibb-market-api.aicreativestudio.workers.dev";
+  var isProductionHost = window.location.hostname === "ibb-market.pages.dev";
+  var API = isProductionHost
+    ? "https://ibb-market-api.aicreativestudio.workers.dev"
+    : "https://ibb-market-api-staging.aicreativestudio.workers.dev";
   var governorateBounds = [[13.7049486, 43.6516621], [14.4655897, 44.6814870]];
   var center = [14.08526915, 44.16657455];
   var map, layer, routeLayer, markers = [], currentKind = "", currentQuery = "", timer = null, requestId = 0;
