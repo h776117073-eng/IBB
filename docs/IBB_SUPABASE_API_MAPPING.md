@@ -101,3 +101,36 @@
 - D1 API schema files `0001` و`0002` هما مصدر التنفيذ الحالي؛ لا تخمن الجداول من وصف API فقط.
 - لا تهاجر بيانات الأرشيف 7,015 أو الملف 16,441 الخام، ولا تفعل الأرشيف دون استئناف صريح من صاحب المشروع.
 - يجب أخذ snapshot/checksum قبل أي ترحيل، والقدرة على العودة إلى D1 دون فقد طلبات أو مساهمات.
+
+
+## 7. آلية الاتصال المقترحة: Cloudflare Hyperdrive
+
+### الوضع الحالي
+
+- لا توجد أي Hyperdrive configurations في حساب Cloudflare المرتبط وقت الجرد.
+- `worker/wrangler.toml` الحالي يربط D1 فقط باسم `DB`؛ لا يحتوي binding باسم `HYPERDRIVE`.
+- `worker/package.json` لا يحتوي dependency PostgreSQL driver `pg`.
+- لا يوجد اتصال PostgreSQL خادمي مفعل ولا connection string في المشروع.
+- لم يتم إنشاء مستخدم قاعدة بيانات خاص بـ IBB أو نشر credentials.
+
+### التنفيذ الموصى به
+
+استخدم Cloudflare Hyperdrive لربط Worker بقاعدة Supabase مباشرة عبر PostgreSQL:
+1. إنشاء DB login خاص مثل `ibb_worker` بصلاحيات محدودة على مخطط `ibb` فقط؛ لا تمنحه عضوية `postgres` ولا صلاحيات على جداول `public` التجارية.
+2. إنشاء connection string للاتصال المباشر (Direct connection) في Supabase واستخدامه عند إعداد Hyperdrive. Cloudflare توصي بـ Direct connection عند ربط Supabase مع Hyperdrive لأن Hyperdrive يتولى pooling.
+3. تخزين connection string ضمن إعداد Hyperdrive فقط؛ لا يكتب في `wrangler.toml` أو Git أو المتصفح.
+4. إضافة binding في Wrangler باسم `HYPERDRIVE`، وإضافة driver `pg` بإصدار مثبت وlockfile، ثم إنشاء repository adapter في Worker.
+5. استخدام `HYPERDRIVE.connectionString` داخل Worker فقط. يبدأ الاختبار بـ SELECT/health query ثم عمليات قراءة تجريبية على مخطط غير إنتاجي.
+6. إبقاء مخطط `ibb` غير exposed عبر Supabase Data API قدر الإمكان. بذلك لا نحتاج منح `anon` أو `authenticated` على هذا المخطط.
+7. DB role لا يحمل صلاحيات `postgres` أو `BYPASSRLS` افتراضيًا؛ امنحه فقط ما يتطلبه adapter. يجب أن يطبق Worker صلاحيات route-level والتحقق الإداري، بينما تحمي grants/RLS من الوصول غير المقصود من أدوار أخرى.
+8. لا تتحول القراءة أو الكتابة من D1 إلى PostgreSQL قبل اختبارات التوافق وshadow reads وrollback.
+
+### مصدر التنفيذ الرسمي
+
+- Cloudflare — Supabase + Hyperdrive: https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/supabase/
+- Cloudflare — PostgreSQL drivers وHyperdrive binding: https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/
+- Supabase — custom schemas وبيانات Data API: https://supabase.com/docs/guides/api/using-custom-schemas
+
+### ما يمنع إعداد Hyperdrive تلقائيًا الآن
+
+إعداد Hyperdrive يحتاج connection string مع DB username/password. لا يوجد حاليًا مستخدم `ibb_worker` أو secret/connection string مخصص في المشروع. لم أُنشئ دورًا أو كلمة مرور أو Hyperdrive resource؛ لأن ذلك يغير بنية الوصول الحية ويحتاج تصميم schema محدودًا واختبارًا قبل تفعيل الاتصال. لا تشارك كلمة مرور قاعدة البيانات داخل المحادثة أو في Git.
