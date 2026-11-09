@@ -250,7 +250,7 @@
     }
     var bounds = map.getBounds();
     var west = bounds.getWest(), south = bounds.getSouth(), east = bounds.getEast(), north = bounds.getNorth();
-    if (east - west > 2.0 || north - south > 2.0) {
+    if (east - west > 3.0 || north - south > 3.0) {
       statusEl.textContent = "قرّب الخريطة داخل محافظة إب لتحميل المواقع";
       noticeEl.textContent = "يُحمّل الدليل ضمن نطاق محافظة إب لتقليل البيانات وتحسين السرعة.";
       noticeEl.hidden = false;
@@ -311,6 +311,11 @@
     L.control.scale({ imperial: false }).addTo(map);
     map.fitBounds(governorateBounds, { padding: [24, 24] });
     map.on("moveend", scheduleLoad);
+    requestAnimationFrame(function () {
+      map.invalidateSize();
+      map.fitBounds(governorateBounds, { padding: [24, 24] });
+      scheduleLoad();
+    });
     map.on("click", function (event) {
       if (!pickingOrigin) return;
       setRouteOrigin(event.latlng, "نقطة الانطلاق المحددة");
@@ -319,6 +324,7 @@
       map.getContainer().style.cursor = "";
     });
     $("fitGovernorate").addEventListener("click", function () {
+      map.invalidateSize();
       map.fitBounds(governorateBounds, { padding: [24, 24] });
     });
     $("pickOrigin").addEventListener("click", function () {
