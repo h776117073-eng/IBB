@@ -79,3 +79,53 @@ test("product listing filters by the approved store neighbourhood and exposes th
   const product=(await response.json()).items[0];
   assert.equal(product.store_neighborhood,"الظهار");
 });
+
+
+function visibilityDb(statements, firstValue = null) {
+  return {
+    prepare(sql) {
+      statements.push(sql);
+      return {
+        bind() { return this; },
+        all: async () => ({ results: [] }),
+        first: async () => firstValue
+      };
+    }
+  };
+}
+
+test("public directory map, detail and suggestions require is_public=1", async () => {
+  const statements = [];
+  const DB = visibilityDb(statements);
+  const map = await worker.fetch(new Request(
+    "https://worker.test/api/v1/map/places?bbox=44.05,13.82,44.32,14.08&zoom=20"
+  ), { DB });
+  assert.equal(map.status, 200);
+  assert.match(statements[0], /is_public=1/);
+
+  const detail = await worker.fetch(new Request(
+    "https://worker.test/api/v1/map/places/gmaps-test"
+  ), { DB });
+  assert.equal(detail.status, 404);
+  assert.match(statements[1], /is_public=1/);
+
+  const suggestions = await worker.fetch(new Request(
+    "https://worker.test/api/v1/map/places/gmaps-test/catalog-suggestions"
+  ), { DB });
+  assert.equal(suggestions.status, 404);
+  assert.match(statements[2], /is_public=1/);
+});
+
+test("published place statistics count only explicitly public records", async () => {
+  const statements = [];
+  const DB = visibilityDb(statements, { total: 0 });
+  const key = "admin-secret-key-that-is-longer-than-32";
+  const response = await worker.fetch(new Request(
+    "https://worker.test/api/v1/admin/catalog/stats",
+    { headers: { Authorization: "Bearer " + key } }
+  ), { DB, ADMIN_API_KEY: key });
+  assert.equal(response.status, 200);
+  const publishedQuery = statements.find((sql) => sql.includes("visibility_status='PUBLISHED'"));
+  assert.ok(publishedQuery);
+  assert.match(publishedQuery, /is_public=1/);
+});
