@@ -1,0 +1,108 @@
+name: Build Ibb Overture PMTiles
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Overture release (blank = latest STAC release)"
+        required: false
+        default: ""
+  push:
+    branches:
+      - feature/ibb-overture-pmtiles-map-2026-11-12
+    paths:
+      - "scripts/build_ibb_overture_tiles.py"
+      - ".github/workflows/build-ibb-overture-pmtiles.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ibb-overture-pmtiles
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Overture release
+        id: release
+        env:
+          REQUESTED_RELEASE: ${{ inputs.release }}
+        run: |
+          if [ -n "$REQUESTED_RELEASE" ]; then
+            RELEASE="$REQUESTED_RELEASE"
+          else
+            RELEASE="$(python - <<'PY'
+          import json, urllib.request
+          with urllib.request.urlopen("https://stac.overturemaps.org/catalog.json", timeout=30) as r:
+              print(json.load(r)["latest"])
+          PY
+          )"
+          fi
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          echo "Building Overture release: $RELEASE"
+
+      - name: Install GIS toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tippecanoe gdal-bin
+          python -m pip install --upgrade pip
+          python -m pip install duckdb==1.4.1
+
+      - name: Build Ibb PMTiles from official GeoParquet
+        env:
+          OVERTURE_RELEASE: ${{ steps.release.outputs.release }}
+        run: python scripts/build_ibb_overture_tiles.py
+
+      - name: Validate PMTiles archives and manifest
+        run: |
+          python - <<'PY'
+          import json, pathlib, subprocess
+          root=pathlib.Path("build/pmtiles")
+          m=json.loads((root/"manifest.json").read_text())
+          assert m["source"] == "Overture Maps GeoParquet"
+          assert m["total_features"] > 0, "No Overture features were extracted"
+          for name, layer in m["layers"].items():
+              if layer.get("available"):
+                  p=root/layer["file"]
+                  assert p.is_file() and p.stat().st_size > 0, f"Missing {name} PMTiles"
+                  with p.open("rb") as stream:
+                      header=stream.read(8)
+                  assert header[:7] == b"PMTiles" and header[7] == 3, f"Invalid PMTiles v3 header: {name}"
+          print(json.dumps(m, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Publish versioned PMTiles release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ibb-overture-tiles-latest
+          OVERTURE_RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" \
+            --title "Ibb Overture PMTiles" \
+            --notes "Regional vector tiles built from official Overture GeoParquet release $OVERTURE_RELEASE. Google Maps tiles are not included."
+          gh release upload "$RELEASE_TAG" build/pmtiles/*.pmtiles build/pmtiles/manifest.json --clobber
+
+      - name: Verify Cloudflare byte-range delivery
+        env:
+          TILE_ORIGIN: https://ibb-map-tiles.aicreativestudio.workers.dev/tiles/overture
+        run: |
+          curl -fsS -o /dev/null "$TILE_ORIGIN/manifest.json"
+          for file in build/pmtiles/*.pmtiles; do
+            [ -f "$file" ] || continue
+            name="$(basename "$file")"
+            status="$(curl -sS -o /dev/null -w '%{http_code}' -H 'Origin: https://ibb-market.pages.dev' -H 'Range: bytes=0-7' "$TILE_ORIGIN/$name")"
+            test "$status" = "206" || { echo "Range request failed for $name: HTTP $status"; exit 1; }
+          done
+
+      - name: Upload build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibb-overture-pmtiles-report
+          path: build/pmtiles/manifest.json
+          if-no-files-found: ignore
