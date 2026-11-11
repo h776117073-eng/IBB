@@ -87,6 +87,18 @@ jobs:
             --notes "Regional vector tiles built from official Overture GeoParquet release $OVERTURE_RELEASE. Google Maps tiles are not included."
           gh release upload "$RELEASE_TAG" build/pmtiles/*.pmtiles build/pmtiles/manifest.json --clobber
 
+      - name: Verify Cloudflare byte-range delivery
+        env:
+          TILE_ORIGIN: https://ibb-map-tiles.aicreativestudio.workers.dev/tiles/overture
+        run: |
+          curl -fsS -o /dev/null "$TILE_ORIGIN/manifest.json"
+          for file in build/pmtiles/*.pmtiles; do
+            [ -f "$file" ] || continue
+            name="$(basename "$file")"
+            status="$(curl -sS -o /dev/null -w '%{http_code}' -H 'Origin: https://ibb-market.pages.dev' -H 'Range: bytes=0-7' "$TILE_ORIGIN/$name")"
+            test "$status" = "206" || { echo "Range request failed for $name: HTTP $status"; exit 1; }
+          done
+
       - name: Upload build report
         if: always()
         uses: actions/upload-artifact@v4
