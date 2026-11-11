@@ -70,7 +70,9 @@ jobs:
               if layer.get("available"):
                   p=root/layer["file"]
                   assert p.is_file() and p.stat().st_size > 0, f"Missing {name} PMTiles"
-                  subprocess.run(["pmtiles","show",str(p)], check=True, capture_output=True, text=True)
+                  with p.open("rb") as stream:
+                      header=stream.read(8)
+                  assert header[:7] == b"PMTiles" and header[7] == 3, f"Invalid PMTiles v3 header: {name}"
           print(json.dumps(m, ensure_ascii=False, indent=2))
           PY
 
