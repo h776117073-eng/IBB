@@ -84,8 +84,8 @@ const map=new maplibregl.Map({
   {id:"buildings-fill",type:"fill",source:"buildings","source-layer":"buildings",minzoom:13,paint:{"fill-color":"#e3cda8","fill-opacity":0.55,"fill-outline-color":"#9b8568"}},
   {id:"places-points",type:"circle",source:"places","source-layer":"places",minzoom:9,paint:{"circle-radius":["interpolate",["linear"],["zoom"],9,2,16,5],"circle-color":"#0b8f68","circle-stroke-color":"#fff","circle-stroke-width":1}},
   {id:"places-label",type:"symbol",source:"places","source-layer":"places",minzoom:12,layout:{"text-field":["coalesce",["get","name"],["get","category"]],"text-font":["Noto Sans Regular"],"text-size":11,"text-anchor":"top","text-offset":[0,0.6],"text-allow-overlap":false},paint:{"text-color":"#143b2f","text-halo-color":"#fff","text-halo-width":1.3}},
-  {id:"addresses-label",type:"symbol",source:"addresses","source-layer":"addresses",minzoom:14,layout:{"text-field":["concat",["coalesce",["get","number"],""]," ",["coalesce",["get","street"],""]],"text-font":["Open Sans Regular"],"text-size":10},paint:{"text-color":"#273b58","text-halo-color":"#fff","text-halo-width":1.2}},
-  {id:"placenames-label",type:"symbol",source:"placenames","source-layer":"placenames",minzoom:5,layout:{"text-field":["get","name"],"text-font":["Open Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],5,10,12,14]},paint:{"text-color":"#fff","text-halo-color":"#3b3b3b","text-halo-width":1.6}}
+  {id:"addresses-label",type:"symbol",source:"addresses","source-layer":"addresses",minzoom:14,layout:{"text-field":["concat",["coalesce",["get","number"],""]," ",["coalesce",["get","street"],""]],"text-font":["Noto Sans Regular"],"text-size":10},paint:{"text-color":"#273b58","text-halo-color":"#fff","text-halo-width":1.2}},
+  {id:"placenames-label",type:"symbol",source:"placenames","source-layer":"placenames",minzoom:5,layout:{"text-field":["get","name"],"text-font":["Noto Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],5,10,12,14]},paint:{"text-color":"#fff","text-halo-color":"#3b3b3b","text-halo-width":1.6}}
  ]
  },
  attributionControl:true
