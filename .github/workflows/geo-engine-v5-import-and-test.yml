@@ -1,0 +1,142 @@
+name: Import and validate IBB Market Geo-Engine v5
+
+on:
+  push:
+    branches:
+      - feature/ibb-market-geo-engine-v5-port-2026-11-14
+    paths:
+      - .github/workflows/geo-engine-v5-import-and-test.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ibb-geo-engine-v5-port
+  cancel-in-progress: false
+
+jobs:
+  import-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout destination project
+        uses: actions/checkout@v4
+        with:
+          ref: feature/ibb-market-geo-engine-v5-port-2026-11-14
+          fetch-depth: 0
+
+      - name: Checkout source Geo-Engine v5 at reviewed commit
+        uses: actions/checkout@v4
+        with:
+          repository: mhommdkuyr/my-ibb-governorate-map
+          ref: 1b346e77ab62ae1d647d7f6dea674311c64f8049
+          path: _geo_engine_source
+
+      - name: Import engine and data without mock backend or binary tile duplication
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p map-v5
+          for dir in assets css data docs js sdk scripts; do cp -a "_geo_engine_source/$dir" map-v5/; done
+          cp _geo_engine_source/index.html _geo_engine_source/README.md _geo_engine_source/manifest.json _geo_engine_source/sw.js map-v5/
+          mkdir -p map-v5/tests
+          cp _geo_engine_source/tests/run_tests.js map-v5/tests/
+          rm -f map-v5/js/ibb-api-service.js map-v5/js/ibb-store-integration.js map-v5/tests/map_28_acceptance_suite.js
+          rm -rf map-v5/pmtiles
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('map-v5/index.html').read_text(encoding='utf-8')
+          html = html.replace('<script src="./js/ibb-api-service.js"></script>\\n  <script src="./js/app.js"></script>\\n  <script src="./js/ibb-store-integration.js"></script>', '<script src="./js/app.js"></script>')
+          html = html.replace('<button class="btn-action primary" id="pc-route-to">', '<button class="btn-action" id="pc-open-store"><i class="fa-solid fa-store"></i> فتح صفحة المكان / المتجر</button>\\n      <button class="btn-action primary" id="pc-route-to">')
+          html = html.replace('حفظ وتوثيق في قاعدة البيانات', 'حفظ محلياً للتصدير والمراجعة')
+          html = html.replace('<title>', '<title>إب ماركت | Geo-Engine v5 — ')
+          Path('map-v5/index.html').write_text(html, encoding='utf-8')
+
+          app = Path('map-v5/js/app.js').read_text(encoding='utf-8')
+          app = re.sub(r"const HOST_ORIGIN = window\\.location\\.protocol\\.startsWith\\('http'\\)[\\s\\S]*?const PM_BASE = `\\$\\{HOST_ORIGIN\\}/pmtiles`;", "const HOST_ORIGIN = window.location.origin + window.location.pathname.replace(/\\\\/map-v5\\\\/?$/, '');\\n  const PM_BASE = 'https://mhommdkuyr.github.io/my-ibb-governorate-map/pmtiles';", app, count=1)
+          app = re.sub(r"const SUPABASE_URL = '[^']*';", "const SUPABASE_URL = '';", app, count=1)
+          app = re.sub(r"const SUPABASE_ANON_KEY = '[^']*';", "const SUPABASE_ANON_KEY = '';", app, count=1)
+          app = app.replace('function fetchSupabaseViewport(lat, lng, zoom) {\\n    if (!navigator.onLine) return;', 'function fetchSupabaseViewport(lat, lng, zoom) {\\n    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !navigator.onLine) return;')
+          app = app.replace('async function saveContributionToSupabase(item) {\\n    if (!navigator.onLine) return;', 'async function saveContributionToSupabase(item) {\\n    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !navigator.onLine) return;')
+          app = app.replace('if (res.matches.length < 6 && navigator.onLine && q.length >= 2) {', 'if (SUPABASE_URL && SUPABASE_ANON_KEY && res.matches.length < 6 && navigator.onLine && q.length >= 2) {')
+          start = app.find("    // Fallback if graph isn't loaded yet")
+          end = app.find('    lastComputedRoute = routeRes;', start)
+          if start >= 0 and end > start:
+              app = app[:start] + "    if (!routeRes) {\\n      sumEl.textContent = 'لا يتوفر مسار صالح في شبكة الطرق لهذه الوجهة. اختر نقطتين متصلتين بالطرق أو تحقق من بيانات التوجيه.';\\n      showToast('تعذر إيجاد مسار على شبكة الطرق؛ لم يتم رسم خط مستقيم بديل.');\\n      return;\\n    }\\n\\n" + app[end:]
+          anchor = "  document.getElementById('pc-share-api').onclick = () => {"
+          handler = '''  // Resolve the selected point against the live Ibb Market directory before opening its public place page.
+          document.getElementById('pc-open-store').onclick = async () => {
+            if (!lastSelectedPlace) return;
+            const p = lastSelectedPlace;
+            const d = 0.00065;
+            const params = new URLSearchParams({ bbox: [p.lng-d,p.lat-d,p.lng+d,p.lat+d].join(','), zoom: '18', limit: '50', q: p.name });
+            showToast('جارٍ البحث عن صفحة المكان في دليل إب ماركت...');
+            try {
+              const response = await fetch('https://ibb-market-api.aicreativestudio.workers.dev/api/v1/map/places?' + params.toString(), { headers: { Accept: 'application/json' }, cache: 'no-store' });
+              if (!response.ok) throw new Error('MARKET_DIRECTORY_UNAVAILABLE');
+              const data = await response.json();
+              const norm = value => String(value || '').normalize('NFKD').replace(/[\\u064B-\\u065F\\u0670]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/[^\\p{L}\\p{N}]/gu, '').toLowerCase();
+              const wanted = norm(p.name);
+              const matches = (Array.isArray(data.items) ? data.items : []).filter(item => { const name = norm(item.name); return item.id && name && (name === wanted || name.includes(wanted) || wanted.includes(name)); }).map(item => { const lat=Number(item.latitude), lng=Number(item.longitude); return { item, distance: Number.isFinite(lat)&&Number.isFinite(lng) ? haversineKm(p.lat,p.lng,lat,lng) : Infinity }; }).filter(x => x.distance <= 0.12).sort((a,b) => a.distance-b.distance);
+              if (!matches.length) { showToast('لم نعثر على صفحة منشورة مطابقة لهذا الموقع بعد. لم نفتح متجراً آخر بالخطأ.'); return; }
+              window.location.href = '../market/place/?id=' + encodeURIComponent(matches[0].item.id);
+            } catch (error) { showToast('تعذر الاتصال بدليل إب ماركت الآن. حاول مرة أخرى لاحقاً.'); }
+          };
+          '''
+          if anchor in app: app = app.replace(anchor, handler + '\\n' + anchor, 1)
+          Path('map-v5/js/app.js').write_text(app, encoding='utf-8')
+
+          sw = Path('map-v5/sw.js').read_text(encoding='utf-8')
+          sw = sw.replace("my-ibb-map-v5-0-ibb-market", "ibb-market-geo-engine-v5-port")
+          sw = sw.replace("  './js/ibb-api-service.js',\\n", '').replace("  './js/ibb-store-integration.js',\\n", '')
+          Path('map-v5/sw.js').write_text(sw, encoding='utf-8')
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          html=p.read_text(encoding='utf-8')
+          old='<a class="button button-light" href="./map/">الخريطة المتقدمة</a>'
+          new=old+'\\n        <a class="button button-light" href="./map-v5/" title="محرك الخريطة المتقدم v5">Geo-Engine v5</a>'
+          if old in html and './map-v5/' not in html: html=html.replace(old,new,1)
+          p.write_text(html,encoding='utf-8')
+          PY
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax and local Geo-Engine unit tests
+        run: |
+          node --check map-v5/js/app.js
+          node --check map-v5/js/ibb-search-worker.js
+          node --check map-v5/js/ibb-routing-worker.js
+          node map-v5/tests/run_tests.js
+          node map-v5/scripts/validate-v5.mjs
+
+      - name: Validate existing IBB platform and Worker
+        run: |
+          node scripts/validate.mjs
+          node scripts/validate_market.mjs
+          node scripts/validate_platform.mjs
+          node --test worker/tests/*.test.mjs
+
+      - name: Commit imported Geo-Engine to this feature branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add map-v5 index.html
+          if git diff --cached --quiet; then echo "No import changes to commit"; exit 0; fi
+          git commit -m "Port IBB Market Geo-Engine v5 into IBB project with guarded store linking"
+          git push origin HEAD:feature/ibb-market-geo-engine-v5-port-2026-11-14
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibb-geo-engine-v5-validation
+          path: map-v5/docs/MAP_CURRENT_STATE_AUDIT.md
