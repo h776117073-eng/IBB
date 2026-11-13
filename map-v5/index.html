@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>إب ماركت | Geo-Engine v5 — خريطتي لمحافظة إب — المنصة الجيومكانية والتجارية المتكاملة (3D + Offline + SDK)</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#090f1d" />
+
+  <!-- MapLibre GL JS v4.7.1 (GPU WebGL2 3D Vector & Terrain Engine) -->
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- PMTiles v3.2.0 (Binary Range Streaming) -->
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Styles -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Top Search, Quick Actions & Category Filter Bar -->
+  <div class="top-container">
+    <div class="top-row">
+      <div class="search-box-wrap">
+        <div class="search-bar">
+          <div class="brand-badge" id="btn-open-drawer" title="لوحة التحكم والمناطق وبوابة المطورين">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>خريطتي • إب PRO</span>
+          </div>
+          <input type="text" id="search-input" placeholder="ابحث في 57,556 منشأة، شارع، حارة، قرية، أو Plus Code..." autocomplete="off" />
+          <button class="icon-btn" id="btn-clear-search" title="مسح" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+          <button class="icon-btn" id="btn-voice-search" title="بحث صوتي بالعربية"><i class="fa-solid fa-microphone"></i></button>
+          <button class="icon-btn" id="btn-open-directions" title="الاتجاهات والملاحة المحلية"><i class="fa-solid fa-diamond-turn-right"></i></button>
+          <button class="icon-btn" id="btn-gps" title="موقعي الحالي"><i class="fa-solid fa-location-crosshairs"></i></button>
+        </div>
+        <div class="search-meta-bar" id="search-meta-bar">
+          <span id="search-stats-txt">Web Worker FST + Spatial Index: جاهز</span>
+          <span id="search-time-txt">0.4 ms</span>
+        </div>
+        <div class="search-results" id="search-results"></div>
+      </div>
+
+      <div class="quick-actions">
+        <button class="qa-btn" id="qa-directions"><i class="fa-solid fa-route"></i><span>ملاحة أوفلاين A*</span></button>
+        <button class="qa-btn gold" id="qa-streetview"><i class="fa-solid fa-street-view"></i><span>التجول الميداني 360°</span></button>
+        <button class="qa-btn cyan" id="qa-georag"><i class="fa-solid fa-robot"></i><span>المساعد الذكي Geo-RAG</span></button>
+        <button class="qa-btn" id="qa-sdk"><i class="fa-solid fa-code"></i><span>الربط التجاري API/SDK</span></button>
+        <button class="qa-btn" id="qa-offline"><i class="fa-solid fa-database"></i><span>IndexedDB أوفلاين</span></button>
+        <div class="net-pill" id="net-pill">
+          <span class="net-dot" id="net-dot"></span>
+          <span id="net-text">متصل • كاش نشط</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Filter Pills -->
+    <div class="chips-bar" id="chips-bar">
+      <button class="chip-btn active" data-cat="all"><i class="fa-solid fa-globe"></i> الكل (57,556)</button>
+      <button class="chip-btn" data-cat="health"><i class="fa-solid fa-hospital"></i> مستشفيات وصيدليات</button>
+      <button class="chip-btn" data-cat="food"><i class="fa-solid fa-utensils"></i> مطاعم وكافيهات ومخابز</button>
+      <button class="chip-btn" data-cat="mosque"><i class="fa-solid fa-mosque"></i> مساجد وجوامع</button>
+      <button class="chip-btn" data-cat="edu"><i class="fa-solid fa-graduation-cap"></i> جامعات ومدارس</button>
+      <button class="chip-btn" data-cat="shop"><i class="fa-solid fa-store"></i> مولات وأسواق ومتاجر</button>
+      <button class="chip-btn" data-cat="biz"><i class="fa-solid fa-building-columns"></i> بنوك وصرافة وشركات</button>
+      <button class="chip-btn" data-cat="hotel"><i class="fa-solid fa-bed"></i> فنادق ومنتجعات</button>
+      <button class="chip-btn" data-cat="gas"><i class="fa-solid fa-gas-pump"></i> وقود وخدمات سيارات</button>
+      <button class="chip-btn" data-cat="street"><i class="fa-solid fa-road"></i> شوارع وجولات وأزغطة</button>
+    </div>
+  </div>
+
+  <!-- Map Mode Switcher (Bottom Left — 100% Proprietary Independent Modes) -->
+  <div class="mode-switcher">
+    <button class="mode-btn active" data-mode="white_3d"><i class="fa-solid fa-cube"></i> خريطتي 3D النهارية</button>
+    <button class="mode-btn" data-mode="dark_3d"><i class="fa-solid fa-moon"></i> ليلي 3D الذكي</button>
+    <button class="mode-btn" data-mode="sat_3d"><i class="fa-solid fa-satellite"></i> قمر صناعي مداري + 3D</button>
+    <button class="mode-btn" data-mode="terrain_3d"><i class="fa-solid fa-mountain-sun"></i> تضاريس إب الجبلية 3D</button>
+  </div>
+
+  <!-- Right Controls -->
+  <div class="right-controls">
+    <button class="ctrl-btn active" id="btn-toggle-3d" title="تبديل منظور المباني 3D / 2D">3D</button>
+    <button class="ctrl-btn" id="btn-toggle-terrain" title="تفعيل التضاريس الجبلية الحقيقية DEM"><i class="fa-solid fa-mountain"></i></button>
+    <button class="ctrl-btn" id="btn-z19" title="تقريب تفصيلي للمباني والمحلات Z19" style="font-size:0.74rem;">Z19</button>
+    <button class="ctrl-btn" id="btn-plus" title="تكبير"><i class="fa-solid fa-plus"></i></button>
+    <button class="ctrl-btn" id="btn-minus" title="تصغير"><i class="fa-solid fa-minus"></i></button>
+    <button class="ctrl-btn" id="btn-home" title="مركز مدينة إب"><i class="fa-solid fa-house"></i></button>
+  </div>
+
+  <!-- Place Details & Building Binding Panel -->
+  <div class="side-panel" id="place-card">
+    <div class="panel-header">
+      <div>
+        <h3 id="pc-title">اسم المنشأة أو المعلم</h3>
+        <span class="badge-cat" id="pc-cat">التصنيف</span>
+      </div>
+      <button class="icon-btn" id="pc-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="info-list" id="pc-meta"></div>
+    <div class="coords-box">
+      <span id="pc-coords-txt">13.972650, 44.161550</span>
+      <span id="pc-pluscode" style="color:#34d399; font-weight:800;">7H56X5F6+2J</span>
+    </div>
+    <div class="action-grid">
+      <button class="btn-action" id="pc-open-store"><i class="fa-solid fa-store"></i> فتح صفحة المكان / المتجر</button>
+      <button class="btn-action primary" id="pc-route-to"><i class="fa-solid fa-diamond-turn-right"></i> ملاحة إلى هنا</button>
+      <button class="btn-action" id="pc-route-from"><i class="fa-solid fa-flag"></i> انطلق من هنا</button>
+      <button class="btn-action gold" id="pc-streetview"><i class="fa-solid fa-street-view"></i> معاينة ميدانية 360°</button>
+      <button class="btn-action" id="pc-highlight-bld"><i class="fa-solid fa-building"></i> إضاءة المبنى 3D</button>
+      <button class="btn-action" id="pc-edit"><i class="fa-solid fa-pen-to-square"></i> تعديل / توثيق</button>
+      <button class="btn-action" id="pc-copy"><i class="fa-regular fa-copy"></i> نسخ العنوان الرقمي</button>
+      <button class="btn-action" id="pc-share-api" style="grid-column: span 2;">
+        <i class="fa-solid fa-plug"></i> إرسال الموقع إلى تطبيقاتي التجارية (Webhook / SDK)
+      </button>
+    </div>
+  </div>
+
+  <!-- Directions & 100% Offline A* Routing Panel -->
+  <div class="side-panel" id="dir-panel">
+    <div class="panel-header">
+      <h3><i class="fa-solid fa-route" style="color:#10b981;"></i> محرك التوجيه والملاحة المحلي (A* + CH)</h3>
+      <button class="icon-btn" id="dir-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="dir-modes">
+      <button class="dir-mode-btn active" data-profile="driving"><i class="fa-solid fa-car"></i> بالسيارة / توصيل</button>
+      <button class="dir-mode-btn" data-profile="walking"><i class="fa-solid fa-person-walking"></i> مشياً على الأقدام</button>
+    </div>
+    <div class="dir-field">
+      <i class="fa-solid fa-circle-dot" style="color:#10b981;"></i>
+      <input type="text" id="dir-origin" placeholder="نقطة الانطلاق (انقر الزر أو الخريطة)" readonly />
+      <button class="icon-btn" id="dir-pick-origin" title="تحديد من الخريطة"><i class="fa-solid fa-crosshairs"></i></button>
+      <button class="icon-btn" id="dir-use-gps" title="موقعي الحالي"><i class="fa-solid fa-location-arrow"></i></button>
+    </div>
+    <div class="dir-field">
+      <i class="fa-solid fa-location-dot" style="color:#ef4444;"></i>
+      <input type="text" id="dir-dest" placeholder="الوجهة (انقر الزر أو الخريطة)" readonly />
+      <button class="icon-btn" id="dir-pick-dest" title="تحديد من الخريطة"><i class="fa-solid fa-crosshairs"></i></button>
+    </div>
+    <div style="display:flex; gap:7px;">
+      <button class="btn-action primary" id="dir-calc" style="flex:1;"><i class="fa-solid fa-play"></i> حساب المسار الفوري</button>
+      <button class="btn-action gold" id="dir-voice-tts" title="نطق التعليمات صوتياً بالعربية"><i class="fa-solid fa-volume-high"></i></button>
+      <button class="btn-action" id="dir-clear" title="مسح المسار"><i class="fa-solid fa-trash"></i></button>
+    </div>
+    <div class="route-summary" id="dir-summary" style="display:none;"></div>
+  </div>
+
+  <!-- 360 Street-Level & Storefront Viewer Panel -->
+  <div class="side-panel" id="sv-panel">
+    <div class="panel-header">
+      <h3><i class="fa-solid fa-street-view" style="color:#f59e0b;"></i> عارض التجول الميداني والواجهات 360°</h3>
+      <button class="icon-btn" id="sv-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="sv-viewer-box" id="sv-viewer-box">
+      <div class="sv-strip" id="sv-strip"></div>
+      <div class="sv-overlay-hud">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge-cat" id="sv-badge">زاوية 360° • سحب تفاعلي</span>
+          <span style="font-size:0.72rem; background:rgba(15,23,42,0.85); padding:3px 8px; border-radius:6px;" id="sv-heading-txt">الاتجاه: 120° جنوب شرق</span>
+        </div>
+        <div>
+          <h4 id="sv-title" style="font-size:0.9rem; color:#fff;">شارع العدين التجاري — وسط مدينة إب</h4>
+          <p id="sv-sub" style="font-size:0.73rem; color:#cbd5e1;">الارتفاع: 2,046 م • Plus Code: 7H56X5FG+F7G</p>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:6px;" id="sv-nodes-bar"></div>
+    <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;" id="sv-nearby-shops"></div>
+  </div>
+
+  <!-- Main Enterprise Drawer (5 Tabs) -->
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div>
+        <h3 style="font-size:0.98rem; color:#34d399;"><i class="fa-solid fa-map-location-dot"></i> منظومة خريطتي لمحافظة إب</h3>
+        <span style="font-size:0.7rem; color:#94a3b8;">الإصدار المؤسسي والتجاري المملوك بالكامل • v3.0 Enterprise</span>
+      </div>
+      <button class="icon-btn" id="btn-close-drawer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="drawer-tabs">
+      <button class="d-tab active" data-tab="tab-regions"><i class="fa-solid fa-layer-group"></i> القطاعات</button>
+      <button class="d-tab" data-tab="tab-georag"><i class="fa-solid fa-robot"></i> مساعد Geo-RAG</button>
+      <button class="d-tab" data-tab="tab-sdk"><i class="fa-solid fa-code"></i> التجاري SDK</button>
+      <button class="d-tab" data-tab="tab-offline"><i class="fa-solid fa-database"></i> IndexedDB</button>
+      <button class="d-tab" data-tab="tab-contrib"><i class="fa-solid fa-pen-ruler"></i> المساهمات</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Tab 1: Regions & Architecture Layers -->
+      <div class="tab-pane active" id="tab-regions">
+        <div class="stats-grid">
+          <div class="stat-box"><div class="val">444,968</div><div class="lbl">مضلع مبنى 3D مملوك</div></div>
+          <div class="stat-box"><div class="val">13,125</div><div class="lbl">مقطع طريق موجه</div></div>
+          <div class="stat-box"><div class="val">57,556</div><div class="lbl">منشأة ومعلم وقرية</div></div>
+          <div class="stat-box"><div class="val" id="stat-idb-count">نشط</div><div class="lbl">IndexedDB Range Cache</div></div>
+        </div>
+
+        <label class="toggle-row">
+          <span>المباني ثلاثية الأبعاد (3D Extrusion + Building Binding)</span>
+          <input type="checkbox" id="chk-3d" checked />
+        </label>
+        <label class="toggle-row">
+          <span>التضاريس الجبلية ثلاثية الأبعاد (DEM 1500m–2800m)</span>
+          <input type="checkbox" id="chk-terrain" />
+        </label>
+        <label class="toggle-row">
+          <span>شبكة الطرق والشرايين الرئيسية (13,125 طريق)</span>
+          <input type="checkbox" id="chk-roads" checked />
+        </label>
+        <label class="toggle-row">
+          <span>المنشآت والمحلات التجارية (منع تصادم ذكي)</span>
+          <input type="checkbox" id="chk-pois" checked />
+        </label>
+        <label class="toggle-row">
+          <span>الأسماء الحية للحارات والقرى والشوارع</span>
+          <input type="checkbox" id="chk-labels" checked />
+        </label>
+
+        <h4 style="font-size:0.82rem; color:#34d399; margin:11px 0 7px;">الانتقال السريع للمديريات والمدن والحارات (28 قطاع)</h4>
+        <div id="region-list"></div>
+      </div>
+
+      <!-- Tab 2: Conversational Geo-RAG Assistant -->
+      <div class="tab-pane" id="tab-georag">
+        <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.35); border-radius:10px; padding:10px; margin-bottom:10px; font-size:0.77rem; line-height:1.5;">
+          <strong>المساعد الجغرافي والتجاري الذكي (Geo-RAG):</strong> اسأل بلغة طبيعية عن أقرب المستشفيات، الصيدليات، الفنادق، الصرافات، أو الشوارع في أي حارة أو مديرية مع حساب المسافة والمسار الفوري.
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px;">
+          <button class="chip-btn rag-preset" data-q="مستشفى في الظهار">أقرب مستشفى بالظهار</button>
+          <button class="chip-btn rag-preset" data-q="صيدلية في شارع العدين">صيدليات شارع العدين</button>
+          <button class="chip-btn rag-preset" data-q="فندق في شارع الثلاثين">فنادق شارع الثلاثين</button>
+          <button class="chip-btn rag-preset" data-q="صرافة وبنك">بنوك وصرافة</button>
+          <button class="chip-btn rag-preset" data-q="زغط المدينة القديمة">أزغطة المدينة القديمة</button>
+        </div>
+        <div class="dir-field">
+          <i class="fa-solid fa-wand-magic-sparkles" style="color:#38bdf8;"></i>
+          <input type="text" id="rag-input" placeholder="اكتب سؤالك الجغرافي هنا..." />
+          <button class="btn-action primary" id="rag-send" style="padding:5px 10px;">تحليل</button>
+        </div>
+        <div id="rag-output" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- Tab 3: Commercial API & SDK Integration Portal -->
+      <div class="tab-pane" id="tab-sdk">
+        <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.35); border-radius:10px; padding:10px; margin-bottom:10px; font-size:0.76rem; line-height:1.5;">
+          <strong>بوابة التكامل التجاري والمؤسسي (`IbbMapSDK v3.0`):</strong> المنظومة مملوكة بالكامل لمشروعك وجاهزة للربط المباشر مع تطبيقات التوصيل، المتاجر الإلكترونية، وتطبيقات الأندرويد (`APK / Capacitor`).
+        </div>
+
+        <h4 style="font-size:0.8rem; color:#34d399; margin-bottom:5px;">1. تضمين الخريطة في مواقعك وتطبيقاتك (Iframe + PostMessage SDK)</h4>
+        <div class="code-block" id="sdk-code-iframe">&lt;iframe id="ibbMap" src="https://mhommdkuyr.github.io/my-ibb-governorate-map/" width="100%" height="600" style="border:0;border-radius:12px;"&gt;&lt;/iframe&gt;
+&lt;script&gt;
+// استعلام بحث أو حساب توصيل مباشر عبر IbbMapSDK
+const mapWin = document.getElementById('ibbMap').contentWindow;
+mapWin.postMessage({
+  channel: 'IBB_MAP_SDK_V3',
+  action: 'ROUTE',
+  reqId: 'order_101',
+  origin: { lat: 13.97265, lng: 44.16155 },
+  destination: { lat: 13.96541, lng: 44.18173 },
+  mode: 'driving'
+}, '*');
+&lt;/script&gt;</div>
+
+        <h4 style="font-size:0.8rem; color:#38bdf8; margin-bottom:5px;">2. استدعاء JavaScript SDK المباشر (`window.IbbMapSDK`)</h4>
+        <div class="code-block">const route = await window.IbbMapSDK.calculateDeliveryRoute(
+  { lat: 13.97265, lng: 44.16155 }, // جولة العدين
+  { lat: 13.96850, lng: 44.15650 }, // شارع الثلاثين
+  'driving'
+);
+console.log(route.distanceMeters, route.estimatedDeliveryFeeYER);</div>
+
+        <div style="display:flex; gap:7px; margin-bottom:10px;">
+          <button class="btn-action primary" id="btn-test-sdk" style="flex:1;"><i class="fa-solid fa-bolt"></i> اختبار حاسبة التوصيل والـ SDK حياً</button>
+          <button class="btn-action" id="btn-copy-sdk"><i class="fa-regular fa-copy"></i> نسخ الكود</button>
+        </div>
+        <div id="sdk-test-output" class="code-block" style="display:none; color:#34d399;"></div>
+
+        <h4 style="font-size:0.8rem; color:#fbbf24; margin:10px 0 6px;">3. تصدير قواعد البيانات الكاملة للمشاريع الخارجية</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
+          <button class="btn-action" id="btn-dl-routing-graph"><i class="fa-solid fa-diagram-project"></i> شبكة الطرق JSON</button>
+          <button class="btn-action" id="btn-dl-all-csv"><i class="fa-solid fa-file-csv"></i> تصدير المنشآت CSV</button>
+        </div>
+      </div>
+
+      <!-- Tab 4: IndexedDB Range Cache & Offline District Downloader -->
+      <div class="tab-pane" id="tab-offline">
+        <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:10px; margin-bottom:10px; font-size:0.76rem; line-height:1.5;">
+          <strong>محرك `IndexedDBByteSource` لبلاطات PMTiles:</strong> بخلاف `CacheStorage` الذي يرفض استجابات `HTTP 206`، يقوم هذا المحرك بحفظ شرائح البلاطات الثنائية (`ArrayBuffer`) داخل `IndexedDB` تلقائياً مع تفعيل التخزين الدائم `navigator.storage.persist()`.
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="val" id="idb-chunks-val">0</div><div class="lbl">شريحة PMTiles في IndexedDB</div></div>
+          <div class="stat-box"><div class="val" id="idb-persist-val">مفعل</div><div class="lbl">حماية الكاش الدائم (Persist)</div></div>
+        </div>
+        <div id="offline-packs"></div>
+        <h4 style="font-size:0.82rem; color:#34d399; margin:11px 0 7px;">حزم المديريات والمدن للعمل 100% بدون إنترنت</h4>
+        <div id="offline-regions-list"></div>
+      </div>
+
+      <!-- Tab 5: Field Contributions & Commercial Directory Admin -->
+      <div class="tab-pane" id="tab-contrib">
+        <form id="contrib-form">
+          <input type="hidden" id="cf-id" />
+          <div class="form-group">
+            <label>اسم المنشأة التجارية / المعلم / الشارع *</label>
+            <input type="text" id="cf-name" required placeholder="مثال: صيدلية الشفاء أو شارع الثلاثين" />
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
+            <div class="form-group">
+              <label>التصنيف</label>
+              <select id="cf-cat">
+                <option value="shop">متجر / مركز تجاري</option>
+                <option value="hospital">مستشفى / مركز طبي</option>
+                <option value="pharmacy">صيدلية</option>
+                <option value="clinic">عيادة / مختبر</option>
+                <option value="restaurant">مطعم / كافيه</option>
+                <option value="mosque">مسجد / جامع</option>
+                <option value="school">مدرسة / جامعة</option>
+                <option value="bank">بنك / صرافة</option>
+                <option value="hotel">فندق / استراحة</option>
+                <option value="gas">وقود / خدمات سيارات</option>
+                <option value="street">شارع / جولة / زغط</option>
+                <option value="company">شركة / مكتب عقاري</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>الحارة / الشارع</label>
+              <input type="text" id="cf-hara" placeholder="مثال: حارة السبل - شارع العدين" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
+            <div class="form-group">
+              <label>خط العرض (Lat)</label>
+              <input type="number" step="0.000001" id="cf-lat" required />
+            </div>
+            <div class="form-group">
+              <label>خط الطول (Lng)</label>
+              <input type="number" step="0.000001" id="cf-lng" required />
+            </div>
+          </div>
+          <button type="button" class="btn-action" id="cf-pick-map" style="width:100%; margin-bottom:8px;">
+            <i class="fa-solid fa-map-pin"></i> التقاط الإحداثيات بالنقر على الخريطة
+          </button>
+          <div class="form-group">
+            <label>رقم الهاتف للتواصل والتوصيل</label>
+            <input type="text" id="cf-phone" placeholder="+967 77..." />
+          </div>
+          <div class="form-group">
+            <label>العنوان التفصيلي / ساعات الدوام</label>
+            <textarea id="cf-notes" rows="2" placeholder="أمام معلم كذا، مفتوح 24 ساعة..."></textarea>
+          </div>
+          <button type="submit" class="btn-action primary" style="width:100%;">
+            <i class="fa-solid fa-floppy-disk"></i> حفظ محلياً للتصدير والمراجعة
+          </button>
+        </form>
+
+        <div style="display:flex; gap:7px; margin-top:11px;">
+          <button class="btn-action" id="btn-export-geojson" style="flex:1;"><i class="fa-solid fa-file-export"></i> تصدير GeoJSON</button>
+          <button class="btn-action" id="btn-export-json" style="flex:1;"><i class="fa-solid fa-download"></i> تصدير JSON</button>
+        </div>
+
+        <h4 style="font-size:0.82rem; color:#34d399; margin:12px 0 7px;">السجلات الميدانية الموثقة (<span id="contrib-count">0</span>)</h4>
+        <div id="contrib-list"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Telemetry & Status Bar -->
+  <div class="bottom-bar">
+    <span id="status-coords">خط العرض: 13.972650° | خط الطول: 44.161550° | Plus Code: 7H56X5F6+2J | الارتفاع: 2,035 م</span>
+    <span id="status-zoom">الزوم: <strong style="color:#34d399;">16.5</strong> | محرك خريطتي 3D + Web Workers + IndexedDB Range Cache</span>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="./sdk/ibb-map-sdk.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
