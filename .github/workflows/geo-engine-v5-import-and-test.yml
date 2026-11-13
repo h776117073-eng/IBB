@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           mkdir -p map-v5
           for dir in assets css data docs js sdk scripts; do cp -a "_geo_engine_source/$dir" map-v5/; done
-          cp _geo_engine_source/index.html _geo_engine_source/README.md _geo_engine_source/manifest.json _geo_engine_source/sw.js map-v5/
+          cp _geo_engine_source/index.html _geo_engine_source/manifest.json _geo_engine_source/sw.js map-v5/
           mkdir -p map-v5/tests
           cp _geo_engine_source/tests/run_tests.js map-v5/tests/
           rm -f map-v5/js/ibb-api-service.js map-v5/js/ibb-store-integration.js
