@@ -11,7 +11,7 @@ assert.doesNotMatch(html, /ibb-api-service\.js|ibb-store-integration\.js/);
 assert.match(app, /pc-open-store/);
 assert.match(app, /ibb-market-api\.aicreativestudio\.workers\.dev\/api\/v1\/map\/places/);
 assert.match(app, /\.\.\/market\/place\/\?id=/);
-assert.doesNotMatch(app, /gdgtwonxbujgxfiqivvp|eyJhbGciOiJIUzI1Ni/);
+assert.match(app, /SUPABASE_URL = 'https:\\/\\/gdgtwonxbujgxfiqivvp\\.supabase\\.co'/);\nassert.match(app, /SUPABASE_ANON_KEY = 'sb_publishable_/);\nassert.doesNotMatch(app, /eyJhbGciOiJIUzI1Ni/);\nassert.match(app, /MAX_RANGE_CACHE_BYTES = 64 \\* 1024 \\* 1024/);\nassert.match(app, /const PM_BASE = `\\$\\{HOST_ORIGIN\\}\\/tiles`/);
 assert.doesNotMatch(app, /straightKm/);
 assert.match(app, /تعذر إيجاد مسار على شبكة الطرق/);
 assert.doesNotMatch(sw, /ibb-api-service\.js|ibb-store-integration\.js/);
