@@ -29,6 +29,7 @@ function tileHeaders(extra = {}) {
   headers.set('Content-Type', 'application/vnd.pmtiles');
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Vary', 'Range');
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('X-Content-Type-Options', 'nosniff');
   return headers;
@@ -49,6 +50,7 @@ export async function onRequest({ request, env, params }) {
     const stored = await env.MAP_TILES.head(key);
     if (stored) {
       const headers = tileHeaders();
+      headers.set('X-IBB-Tile-Source', 'r2');
       headers.set('Content-Length', String(stored.size));
       if (stored.httpEtag) headers.set('ETag', stored.httpEtag);
       if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
@@ -71,6 +73,7 @@ export async function onRequest({ request, env, params }) {
       const upstream = await fetch(source, { method: 'HEAD', headers: { 'User-Agent': 'IBB-Market-Geo-Engine/5.0', Accept: 'application/octet-stream' } });
       if (!upstream.ok) return new Response('Upstream tile archive unavailable', { status: 502 });
       const headers = tileHeaders();
+      headers.set('X-IBB-Tile-Source', 'upstream');
       for (const name of ['content-length', 'etag', 'last-modified']) {
         const value = upstream.headers.get(name);
         if (value) headers.set(name, value);
@@ -91,6 +94,7 @@ export async function onRequest({ request, env, params }) {
       return new Response(`Upstream did not honor byte ranges (HTTP ${upstream.status})`, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     }
     const headers = tileHeaders();
+    headers.set('X-IBB-Tile-Source', 'upstream');
     for (const name of ['content-range', 'content-length', 'etag', 'last-modified']) {
       const value = upstream.headers.get(name);
       if (value) headers.set(name, value);

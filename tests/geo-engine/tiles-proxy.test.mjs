@@ -22,6 +22,8 @@ test('private R2 tiles return only the requested 206 byte range', async () => {
   const request = new Request('https://example.test/tiles/base.pmtiles', { headers: { Range: 'bytes=10-19' } });
   const response = await onRequest({ request, env: { MAP_TILES: bucket }, params: { path: 'base.pmtiles' } });
   assert.equal(response.status, 206);
+  assert.equal(response.headers.get('X-IBB-Tile-Source'), 'r2');
+  assert.equal(response.headers.get('Vary'), 'Range');
   assert.equal(response.headers.get('Content-Range'), 'bytes 10-19/100');
   assert.equal(response.headers.get('Content-Length'), '10');
   assert.equal((await response.arrayBuffer()).byteLength, 10);
@@ -47,6 +49,7 @@ test('large upstream archives are proxied only with a Range header', async () =>
     const request = new Request('https://example.test/tiles/buildings.pmtiles', { headers: { Range: 'bytes=0-15' } });
     const response = await onRequest({ request, env: { MAP_TILES: bucket }, params: { path: 'buildings.pmtiles' } });
     assert.equal(response.status, 206);
+    assert.equal(response.headers.get('X-IBB-Tile-Source'), 'upstream');
     assert.match(requestedUrl, /\/buildings\.pmtiles$/);
     assert.equal(response.headers.get('Content-Range'), 'bytes 0-15/124356620');
     assert.equal((await response.arrayBuffer()).byteLength, 16);
