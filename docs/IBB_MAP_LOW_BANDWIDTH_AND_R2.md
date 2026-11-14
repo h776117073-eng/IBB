@@ -17,3 +17,5 @@ CI covers JavaScript syntax, map unit/data checks, and five byte-range proxy tes
 - Arabic search runs locally first. Only when fewer than six local matches are found does it query Supabase, after a 500–800 ms debounce; superseded queries are aborted and identical nearby queries are cached for ten minutes. Low-data mode caps that RPC at ten rows.
 
 - In low-data mode the ten full POI chunks and the offline routing graph are not downloaded at startup. The compact baseline and current viewport records remain available; the full routing graph downloads only after the user requests route calculation.
+
+Users can explicitly force the compact profile by opening the map with `?low-data=1`; otherwise it is selected automatically from the browser Save-Data/2G/downlink hints.

@@ -635,7 +635,8 @@
   const HOST_ORIGIN = window.location.origin + window.location.pathname.split('/map-v5')[0];
   const PM_BASE = `${HOST_ORIGIN}/tiles`;
   const networkInfo = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  const LOW_DATA_MODE = Boolean(networkInfo && (networkInfo.saveData || /(^|-)2g/.test(networkInfo.effectiveType || '') || (Number.isFinite(networkInfo.downlink) && networkInfo.downlink > 0 && networkInfo.downlink < 1.2)));
+  const FORCE_LOW_DATA_MODE = new URLSearchParams(window.location.search).get('low-data') === '1';
+  const LOW_DATA_MODE = FORCE_LOW_DATA_MODE || Boolean(networkInfo && (networkInfo.saveData || /(^|-)2g/.test(networkInfo.effectiveType || '') || (Number.isFinite(networkInfo.downlink) && networkInfo.downlink > 0 && networkInfo.downlink < 1.2)));
 
   // Lightweight 2D Canvas Fallback Map Engine for WebGL-disabled / Ultra-Weak Devices
   function createFallbackMap2D(containerId, initCenter, initZoom) {

@@ -33,3 +33,5 @@ assert.match(app, /supaSearchAbortController\.abort\(\)/);
 assert.match(app, /if \(!LOW_DATA_MODE\)/);
 assert.match(app, /async function ensureRoutingGraphLoaded/);
 assert.match(app, /if \(LOW_DATA_MODE\) return/);
+
+assert.match(app, /FORCE_LOW_DATA_MODE = new URLSearchParams\(window\.location\.search\)\.get\('low-data'\) === '1'/);
