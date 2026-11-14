@@ -94,45 +94,86 @@
   let idbPromise = null;
   let idbCachedChunksCount = 0;
 
+  const IDB_META_STORE = 'range_meta';
+  const MAX_RANGE_CACHE_BYTES = 64 * 1024 * 1024;
+  const MAX_SINGLE_RANGE_BYTES = 4 * 1024 * 1024;
   function openRangeDB() {
     if (idbPromise) return idbPromise;
     idbPromise = new Promise((resolve) => {
       try {
-        const req = indexedDB.open(IDB_NAME, 1);
+        const req = indexedDB.open(IDB_NAME, 2);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
-          if (!db.objectStoreNames.contains(IDB_STORE)) {
-            db.createObjectStore(IDB_STORE);
-          }
+          if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+          if (!db.objectStoreNames.contains(IDB_META_STORE)) db.createObjectStore(IDB_META_STORE);
+          const rangeStore = e.target.transaction.objectStore(IDB_STORE);
+          const metaStore = e.target.transaction.objectStore(IDB_META_STORE);
+          const cursorReq = rangeStore.openCursor();
+          cursorReq.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (!cursor) return;
+            const value = cursor.value;
+            metaStore.put({ size: value && value.byteLength ? value.byteLength : 0, touchedAt: 0 }, cursor.key);
+            cursor.continue();
+          };
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
-      } catch {
-        resolve(null);
-      }
+      } catch { resolve(null); }
     });
     return idbPromise;
   }
-
   async function idbGetRange(key) {
     const db = await openRangeDB();
     if (!db) return null;
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction(IDB_STORE, 'readonly');
+        const tx = db.transaction([IDB_STORE, IDB_META_STORE], 'readwrite');
         const req = tx.objectStore(IDB_STORE).get(key);
-        req.onsuccess = () => resolve(req.result || null);
+        req.onsuccess = () => {
+          const value = req.result || null;
+          if (value) tx.objectStore(IDB_META_STORE).put({ size: value.byteLength || 0, touchedAt: Date.now() }, key);
+          resolve(value);
+        };
         req.onerror = () => resolve(null);
       } catch { resolve(null); }
     });
   }
-
+  async function idbTrimRangeCache(db) {
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE, IDB_META_STORE], 'readwrite');
+        const metaStore = tx.objectStore(IDB_META_STORE);
+        const req = metaStore.getAll();
+        req.onsuccess = () => {
+          const entries = req.result || [];
+          let total = entries.reduce((sum, item) => sum + (item.size || 0), 0);
+          if (total <= MAX_RANGE_CACHE_BYTES) return;
+          const keysReq = metaStore.getAllKeys();
+          keysReq.onsuccess = () => {
+            const ordered = entries.map((item, i) => ({ key: keysReq.result[i], ...item })).sort((x, y) => (x.touchedAt || 0) - (y.touchedAt || 0));
+            const ranges = tx.objectStore(IDB_STORE);
+            for (const item of ordered) {
+              if (total <= MAX_RANGE_CACHE_BYTES) break;
+              ranges.delete(item.key);
+              metaStore.delete(item.key);
+              total -= item.size || 0;
+            }
+          };
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch { resolve(); }
+    });
+  }
   async function idbPutRange(key, buf) {
     const db = await openRangeDB();
-    if (!db) return;
+    if (!db || !buf || buf.byteLength > MAX_SINGLE_RANGE_BYTES) return;
     try {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const tx = db.transaction([IDB_STORE, IDB_META_STORE], 'readwrite');
       tx.objectStore(IDB_STORE).put(buf, key);
+      tx.objectStore(IDB_META_STORE).put({ size: buf.byteLength, touchedAt: Date.now() }, key);
+      tx.oncomplete = () => idbTrimRangeCache(db);
       idbCachedChunksCount++;
       const el = document.getElementById('idb-chunks-val');
       if (el) el.textContent = idbCachedChunksCount.toLocaleString();
@@ -592,7 +633,9 @@
 
   // Always resolve PMTiles from the live repository origin or current host
   const HOST_ORIGIN = window.location.origin + window.location.pathname.split('/map-v5')[0];
-  const PM_BASE = 'https://mhommdkuyr.github.io/my-ibb-governorate-map/pmtiles';
+  const PM_BASE = `${HOST_ORIGIN}/tiles`;
+  const networkInfo = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const LOW_DATA_MODE = Boolean(networkInfo && (networkInfo.saveData || /(^|-)2g/.test(networkInfo.effectiveType || '') || (Number.isFinite(networkInfo.downlink) && networkInfo.downlink > 0 && networkInfo.downlink < 1.2)));
 
   // Lightweight 2D Canvas Fallback Map Engine for WebGL-disabled / Ultra-Weak Devices
   function createFallbackMap2D(containerId, initCenter, initZoom) {
@@ -994,13 +1037,9 @@
 
 
   // 7B. Supabase Cloud Geo-Database Integration (Weak-Internet Viewport Streaming & Contributions)
-  const SUPABASE_URL = '';
-  const SUPABASE_ANON_KEY = '';
-  const SUPA_HEADERS = {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-    'Content-Type': 'application/json'
-  };
+  const SUPABASE_URL = 'https://gdgtwonxbujgxfiqivvp.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ziUReupVGc-Zpx8ukc0pVQ_cMipH5l2';
+  const SUPA_HEADERS = { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
   const SEEN_POI_KEYS = new Set(INITIAL_CORE_POIS.map(p => `${p.name}|${p.lat.toFixed(5)}|${p.lng.toFixed(5)}`));
 
   function mergeCloudPois(rows) {
@@ -1026,28 +1065,33 @@
   }
 
   let supaTimer = null;
+  let supaAbortController = null;
+  const SUPA_VIEW_CACHE = new Map();
   function fetchSupabaseViewport(lat, lng, zoom) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !navigator.onLine) return;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !navigator.onLine || zoom < 11.5) return;
     clearTimeout(supaTimer);
     supaTimer = setTimeout(async () => {
+      const span = Math.max(0.008, Math.min(0.08, 0.12 / Math.pow(2, Math.max(0, zoom - 12))));
+      const bounds = [lng - span, lat - span, lng + span, lat + span].map(v => Number(v.toFixed(3)));
+      const cacheKey = `${bounds.join(',')}|${Math.floor(zoom)}|${activeCatFilter}`;
+      if (supaAbortController) supaAbortController.abort();
+      const cached = SUPA_VIEW_CACHE.get(cacheKey);
+      if (cached && Date.now() - cached.at < 10 * 60 * 1000) { mergeCloudPois(cached.rows); return; }
+      const controller = new AbortController();
+      supaAbortController = controller;
       try {
-        const span = Math.max(0.008, Math.min(0.08, 0.12 / Math.pow(2, Math.max(0, zoom - 12))));
         const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_ibb_pois_in_bbox`, {
-          method: 'POST',
-          headers: SUPA_HEADERS,
-          body: JSON.stringify({
-            min_lat: lat - span, min_lng: lng - span,
-            max_lat: lat + span, max_lng: lng + span,
-            filter_cat: activeCatFilter || 'all',
-            max_rows: 180
-          })
+          method: 'POST', headers: SUPA_HEADERS, signal: controller.signal,
+          body: JSON.stringify({ min_lat: bounds[1], min_lng: bounds[0], max_lat: bounds[3], max_lng: bounds[2], filter_cat: activeCatFilter || 'all', max_rows: LOW_DATA_MODE ? 80 : 140 })
         });
-        if (res.ok) {
-          const rows = await res.json();
-          mergeCloudPois(rows);
-        }
-      } catch {}
-    }, 320);
+        if (!res.ok) throw new Error(`Supabase viewport HTTP ${res.status}`);
+        const rows = await res.json();
+        if (!Array.isArray(rows)) return;
+        SUPA_VIEW_CACHE.set(cacheKey, { at: Date.now(), rows });
+        if (SUPA_VIEW_CACHE.size > 40) SUPA_VIEW_CACHE.delete(SUPA_VIEW_CACHE.keys().next().value);
+        mergeCloudPois(rows);
+      } catch (error) { if (error?.name !== 'AbortError') console.warn('Supabase viewport request failed', error); }
+    }, LOW_DATA_MODE ? 700 : 450);
   }
 
   async function saveContributionToSupabase(item) {

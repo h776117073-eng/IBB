@@ -9,7 +9,6 @@ const CORE_ASSETS = [
   './sdk/ibb-map-sdk.js',
   './manifest.json',
   './data/core_lite.json',
-  './data/ibb_routing_graph.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -40,8 +39,7 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('unpkg.com') ||
     url.hostname.includes('cdnjs.cloudflare.com') ||
     url.hostname.includes('demotiles.maplibre.org') ||
-    url.hostname.includes('arcgisonline.com') ||
-    url.hostname.includes('amazonaws.com');
+    url.hostname.includes('demotiles.maplibre.org');
 
   if (!shouldCache) return;
 
