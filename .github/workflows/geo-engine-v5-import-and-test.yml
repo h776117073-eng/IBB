@@ -1,0 +1,39 @@
+name: Validate IBB Market Geo-Engine v5 and tile delivery
+on:
+  push:
+    branches: [feature/ibb-market-geo-engine-v5-port-2026-11-14]
+    paths: ['map-v5/**', 'functions/tiles/**', 'tests/geo-engine/**', '.github/workflows/geo-engine-v5-import-and-test.yml']
+  pull_request:
+    paths: ['map-v5/**', 'functions/tiles/**', 'tests/geo-engine/**', '.github/workflows/geo-engine-v5-import-and-test.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ibb-geo-engine-v5-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: JavaScript syntax
+        run: |
+          node --check map-v5/js/app.js
+          node --check map-v5/js/ibb-search-worker.js
+          node --check map-v5/js/ibb-routing-worker.js
+          node --check 'functions/tiles/[[path]].js'
+      - name: Geo-Engine unit and data validation
+        run: |
+          node map-v5/tests/run_tests.js
+          node map-v5/scripts/validate-v5.mjs
+      - name: Cloudflare tile range proxy tests
+        run: node --test tests/geo-engine/tiles-proxy.test.mjs
+      - name: Existing IBB platform and Worker validation
+        run: |
+          node scripts/validate.mjs
+          node scripts/validate_market.mjs
+          node scripts/validate_platform.mjs
+          node --test worker/tests/*.test.mjs
