@@ -25,3 +25,7 @@ function walk(dir){ for(const ent of fs.readdirSync(dir,{withFileTypes:true})){ 
 walk(path.join(root,'data'));
 assert.ok(jsonCount >= 30, 'Expected the full district/city data shards');
 console.log('Geo-Engine v5 integration validation passed; parsed '+jsonCount+' JSON data files.');
+
+assert.match(app, /SUPA_SEARCH_CACHE = new Map/);
+assert.match(app, /LOW_DATA_MODE \? 10 : 15/);
+assert.match(app, /supaSearchAbortController\.abort\(\)/);

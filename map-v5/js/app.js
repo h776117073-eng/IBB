@@ -1546,36 +1546,14 @@ document.getElementById('pc-open-store').onclick = async () => {
   const searchMetaBar = document.getElementById('search-meta-bar');
   const clearBtn = document.getElementById('btn-clear-search');
 
-  async function runSearch() {
-    const q = searchInput.value.trim();
-    clearBtn.style.display = q ? 'block' : 'none';
-    if (q.length < 1) {
-      searchResults.classList.remove('open');
-      searchMetaBar.classList.remove('open');
-      return;
-    }
-    const c = map.getCenter();
-    const allowed = CAT_GROUPS[activeCatFilter];
-    let res = await workerSearch(q, c.lat, c.lng, allowed, 25);
-    if (SUPABASE_URL && SUPABASE_ANON_KEY && res.matches.length < 6 && navigator.onLine && q.length >= 2) {
-      try {
-        const sr = await fetch(`${SUPABASE_URL}/rest/v1/rpc/search_ibb_pois`, {
-          method: 'POST', headers: SUPA_HEADERS,
-          body: JSON.stringify({ q_text: q, user_lat: c.lat, user_lng: c.lng, filter_cat: activeCatFilter || 'all', max_rows: 15 })
-        });
-        if (sr.ok) {
-          const rows = await sr.json();
-          if (Array.isArray(rows) && rows.length) {
-            mergeCloudPois(rows);
-            res = await workerSearch(q, c.lat, c.lng, allowed, 25);
-          }
-        }
-      } catch {}
-    }
+  let supaSearchTimer = null;
+  let supaSearchAbortController = null;
+  const SUPA_SEARCH_CACHE = new Map();
+  let searchRequestId = 0;
 
+  function renderSearchResults(res) {
     searchMetaBar.classList.add('open');
     document.getElementById('search-time-txt').textContent = `${res.tookMs} ms • ${res.matches.length} نتيجة`;
-
     searchResults.innerHTML = '';
     if (res.matches.length === 0) {
       searchResults.innerHTML = `<div class="search-item"><div><div class="s-title">لا توجد نتائج مطابقة</div><div class="s-sub">جرّب البحث باسم الحارة أو الشارع أو رمز Plus Code</div></div></div>`;
@@ -1599,6 +1577,58 @@ document.getElementById('pc-open-store').onclick = async () => {
       });
     }
     searchResults.classList.add('open');
+  }
+
+  async function runSearch() {
+    const q = searchInput.value.trim();
+    const requestId = ++searchRequestId;
+    clearBtn.style.display = q ? 'block' : 'none';
+    clearTimeout(supaSearchTimer);
+    if (supaSearchAbortController) supaSearchAbortController.abort();
+
+    if (q.length < 1) {
+      searchResults.classList.remove('open');
+      searchMetaBar.classList.remove('open');
+      return;
+    }
+    const center = map.getCenter();
+    const allowed = CAT_GROUPS[activeCatFilter];
+    let res = await workerSearch(q, center.lat, center.lng, allowed, 25);
+    if (requestId !== searchRequestId) return;
+    renderSearchResults(res);
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || res.matches.length >= 6 || !navigator.onLine || q.length < 2) return;
+    const cacheKey = `${q.toLocaleLowerCase()}|${activeCatFilter}|${center.lat.toFixed(2)}|${center.lng.toFixed(2)}`;
+    const cached = SUPA_SEARCH_CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.at < 10 * 60 * 1000) {
+      mergeCloudPois(cached.rows);
+      const updated = await workerSearch(q, center.lat, center.lng, allowed, 25);
+      if (requestId === searchRequestId && searchInput.value.trim() === q) renderSearchResults(updated);
+      return;
+    }
+
+    supaSearchTimer = setTimeout(async () => {
+      const controller = new AbortController();
+      supaSearchAbortController = controller;
+      try {
+        const sr = await fetch(`${SUPABASE_URL}/rest/v1/rpc/search_ibb_pois`, {
+          method: 'POST',
+          headers: SUPA_HEADERS,
+          signal: controller.signal,
+          body: JSON.stringify({ q_text: q, user_lat: center.lat, user_lng: center.lng, filter_cat: activeCatFilter || 'all', max_rows: LOW_DATA_MODE ? 10 : 15 })
+        });
+        if (!sr.ok) return;
+        const rows = await sr.json();
+        if (!Array.isArray(rows) || requestId !== searchRequestId || searchInput.value.trim() !== q) return;
+        SUPA_SEARCH_CACHE.set(cacheKey, { at: Date.now(), rows });
+        if (SUPA_SEARCH_CACHE.size > 60) SUPA_SEARCH_CACHE.delete(SUPA_SEARCH_CACHE.keys().next().value);
+        mergeCloudPois(rows);
+        const updated = await workerSearch(q, center.lat, center.lng, allowed, 25);
+        if (requestId === searchRequestId && searchInput.value.trim() === q) renderSearchResults(updated);
+      } catch (error) {
+        if (error?.name !== 'AbortError') console.warn('Supabase search request failed', error);
+      }
+    }, LOW_DATA_MODE ? 800 : 500);
   }
 
   searchInput.addEventListener('input', runSearch);
