@@ -1196,6 +1196,7 @@
   }
 
   async function loadNearestShard(lat, lng) {
+    if (LOW_DATA_MODE) return;
     let best = REGIONS[0], bestDist = 1e9;
     for (const r of REGIONS) {
       const d = haversineKm(lat, lng, r.lat, r.lng);
@@ -1219,10 +1220,31 @@
     }
   }
 
-  // Load enriched POIs, core_lite, and offline routing graph
+  // Lazy-load the full offline graph only when the user requests routing in low-data mode.
+  let routingGraphLoadPromise = null;
+  let routingGraphInitialized = false;
+  function initRoutingGraph(graph) {
+    if (!graph || !graph.nodes || routingGraphInitialized) return routingGraphInitialized;
+    routingWorker.postMessage({ type: 'INIT_GRAPH', payload: graph });
+    routingGraphInitialized = true;
+    return true;
+  }
+  async function ensureRoutingGraphLoaded() {
+    if (window.__IBB_EMBEDDED_GRAPH__ && window.__IBB_EMBEDDED_GRAPH__.nodes) {
+      return initRoutingGraph(window.__IBB_EMBEDDED_GRAPH__);
+    }
+    if (!routingGraphLoadPromise) {
+      routingGraphLoadPromise = (async () => {
+        const graph = await fetchJsonWithFallback('./data/ibb_routing_graph.json');
+        return initRoutingGraph(graph);
+      })();
+    }
+    return routingGraphLoadPromise;
+  }
+
   async function bootstrapDataPipelines() {
     if (window.__IBB_EMBEDDED_GRAPH__ && window.__IBB_EMBEDDED_GRAPH__.nodes) {
-      routingWorker.postMessage({ type: 'INIT_GRAPH', payload: window.__IBB_EMBEDDED_GRAPH__ });
+      initRoutingGraph(window.__IBB_EMBEDDED_GRAPH__);
     }
     if (Array.isArray(window.__IBB_EMBEDDED_POIS__)) {
       const mappedEmb = window.__IBB_EMBEDDED_POIS__.map(r => ({
@@ -1235,27 +1257,25 @@
       updatePoiLayers();
     }
 
-    const routingGraph = await fetchJsonWithFallback('./data/ibb_routing_graph.json');
-    if (routingGraph && routingGraph.nodes) {
-      routingWorker.postMessage({ type: 'INIT_GRAPH', payload: routingGraph });
-    }
-
-    // Progressive chunked streaming for weak internet & low-end devices
-    for (let ci = 1; ci <= 10; ci++) {
-      const chunk = await fetchJsonWithFallback(`./data/ibb_pois_${ci}.json`);
-      if (Array.isArray(chunk) && chunk.length) {
-        const mapped = chunk.map(r => ({
-          name: r[0], cat: r[1], catAr: r[2], lat: +r[3], lng: +r[4],
-          reg: r[5], hara: r[6], addr: r[7], plusCode: r[8],
-          floors: r[9], elev: r[10], rating: r[11], phone: r[12]
-        }));
-        ALL_LOADED_POIS.push(...mapped);
-        searchWorker.postMessage({ type: 'ADD_ITEMS', payload: mapped });
-        updatePoiLayers();
-        await new Promise(res => setTimeout(res, 16));
+    if (!LOW_DATA_MODE) {
+      await ensureRoutingGraphLoaded();
+      for (let ci = 1; ci <= 10; ci++) {
+        const chunk = await fetchJsonWithFallback(`./data/ibb_pois_${ci}.json`);
+        if (Array.isArray(chunk) && chunk.length) {
+          const mapped = chunk.map(r => ({
+            name: r[0], cat: r[1], catAr: r[2], lat: +r[3], lng: +r[4],
+            reg: r[5], hara: r[6], addr: r[7], plusCode: r[8],
+            floors: r[9], elev: r[10], rating: r[11], phone: r[12]
+          }));
+          ALL_LOADED_POIS.push(...mapped);
+          searchWorker.postMessage({ type: 'ADD_ITEMS', payload: mapped });
+          updatePoiLayers();
+          await new Promise(res => setTimeout(res, 16));
+        }
       }
     }
 
+    // Compact baseline only. Full POI chunks and offline routing are opt-in on slow links.
     const core = await fetchJsonWithFallback('./data/core_lite.json');
     if (core) {
       const ov = (core.overture_places || []).map(p => ({
@@ -1674,6 +1694,10 @@ document.getElementById('pc-open-store').onclick = async () => {
   }
 
   async function calculateRoute() {
+    if (!await ensureRoutingGraphLoaded()) {
+      showToast('تعذر تحميل بيانات الملاحة؛ تحقق من الاتصال ثم أعد المحاولة');
+      return;
+    }
     if (!dirOrigin || !dirDest) return showToast('يرجى تحديد نقطة الانطلاق والوجهة أولاً');
     const sumEl = document.getElementById('dir-summary');
     sumEl.style.display = 'block';

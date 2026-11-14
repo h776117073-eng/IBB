@@ -15,3 +15,5 @@ Cloudflare Pages must bind the R2 bucket `ibb-map-tiles` to `MAP_TILES` in both 
 CI covers JavaScript syntax, map unit/data checks, and five byte-range proxy tests. CI does not prove the R2 binding, archive schema compatibility, live Supabase behavior, or final browser rendering. Those require an authorized Cloudflare session and a throttled-network browser run with measured transfer sizes.
 
 - Arabic search runs locally first. Only when fewer than six local matches are found does it query Supabase, after a 500–800 ms debounce; superseded queries are aborted and identical nearby queries are cached for ten minutes. Low-data mode caps that RPC at ten rows.
+
+- In low-data mode the ten full POI chunks and the offline routing graph are not downloaded at startup. The compact baseline and current viewport records remain available; the full routing graph downloads only after the user requests route calculation.

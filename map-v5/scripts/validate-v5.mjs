@@ -29,3 +29,7 @@ console.log('Geo-Engine v5 integration validation passed; parsed '+jsonCount+' J
 assert.match(app, /SUPA_SEARCH_CACHE = new Map/);
 assert.match(app, /LOW_DATA_MODE \? 10 : 15/);
 assert.match(app, /supaSearchAbortController\.abort\(\)/);
+
+assert.match(app, /if \(!LOW_DATA_MODE\)/);
+assert.match(app, /async function ensureRoutingGraphLoaded/);
+assert.match(app, /if \(LOW_DATA_MODE\) return/);
