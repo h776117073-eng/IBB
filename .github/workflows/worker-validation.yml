@@ -2,9 +2,9 @@ name: Validate IBB Worker API
 on:
   push:
     branches: ["main"]
-    paths: ["worker/**","cloud-catalog.js","admin.html","index.html",".github/workflows/worker-validation.yml"]
+    paths: ["worker/**","cloud-catalog.js","admin.html","admin-marketplace.html","scripts/validate_admin_marketplace.mjs","index.html",".github/workflows/worker-validation.yml"]
   pull_request:
-    paths: ["worker/**","cloud-catalog.js","admin.html","index.html"]
+    paths: ["worker/**","cloud-catalog.js","admin.html","admin-marketplace.html","scripts/validate_admin_marketplace.mjs","index.html"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,5 +17,6 @@ jobs:
         with:
           node-version: "22"
       - run: node scripts/validate.mjs
+      - run: node scripts/validate_admin_marketplace.mjs
       - run: node --check worker/src/index.js
       - run: node --test worker/tests/*.test.mjs
