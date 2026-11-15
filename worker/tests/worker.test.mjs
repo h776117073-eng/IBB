@@ -1,4 +1,4 @@
-import test from "node:test";import assert from "node:assert/strict";import worker, {norm,storeInput,productInput,safeImage,buildDirectoryCandidateFilter} from "../src/index.js";
+import test from "node:test";import assert from "node:assert/strict";import worker, {norm,storeInput,productInput,safeImage,buildDirectoryCandidateFilter,buildAdminMarketplaceFilter,adminMarketplaceStatusInput} from "../src/index.js";
 test("Arabic normalization",()=>assert.equal(norm(" متجر\u00a0 إب "),"متجر إب"));
 test("valid location",()=>assert.equal(storeInput({name:"متجر اختبار",latitude:13.966,longitude:44.172}).latitude,13.966));
 test("invalid lat/lon/name rejected",()=>{assert.throws(()=>storeInput({name:"متجر",latitude:91,longitude:44}));assert.throws(()=>storeInput({name:" ",latitude:13,longitude:44}));assert.throws(()=>storeInput({name:"متجر",latitude:13,longitude:181}));});
@@ -198,4 +198,80 @@ test("map endpoint accepts a wide viewport needed for the full governorate on de
   const data = await response.json();
   assert.equal(data.api_version, "3");
   assert.deepEqual(data.items, []);
+});
+
+
+test("admin marketplace filters validate type/status and parameterize Arabic search",()=>{
+  const store=buildAdminMarketplaceFilter(new URL("https://local.test/?type=STORE&status=SUSPENDED&q=%D8%A8%D9%82%D8%A7%D9%84%D8%A9&limit=900&offset=90000"));
+  assert.equal(store.type,"STORE"); assert.equal(store.status,"SUSPENDED"); assert.equal(store.limit,100); assert.equal(store.offset,10000);
+  assert.match(store.whereSql,/status=\?/); assert.deepEqual(store.values,["SUSPENDED","بقالة","بقالة","بقالة"]);
+  const product=buildAdminMarketplaceFilter(new URL("https://local.test/?type=PRODUCT&status=ACTIVE&q=%D8%A3%D8%B1%D8%B2"));
+  assert.match(product.whereSql,/p\.status=\?/); assert.match(product.whereSql,/s\.name_norm/); assert.equal(product.values.length,5);
+  assert.throws(()=>buildAdminMarketplaceFilter(new URL("https://local.test/?type=STORE&status=ACTIVE")));
+  assert.throws(()=>buildAdminMarketplaceFilter(new URL("https://local.test/?type=MAP")));
+});
+
+test("admin marketplace status changes require an allowed state and a reason",()=>{
+  assert.deepEqual(adminMarketplaceStatusInput("STORE",{status:"suspended",reason:"مخالفة موثقة"}),{status:"SUSPENDED",reason:"مخالفة موثقة"});
+  assert.deepEqual(adminMarketplaceStatusInput("PRODUCT",{status:"active",reason:"تمت المراجعة"}),{status:"ACTIVE",reason:"تمت المراجعة"});
+  assert.throws(()=>adminMarketplaceStatusInput("STORE",{status:"ACTIVE",reason:"سبب صحيح"}));
+  assert.throws(()=>adminMarketplaceStatusInput("PRODUCT",{status:"SUSPENDED",reason:"لا"}));
+});
+
+test("admin marketplace summary, entity list and status writes require the admin key",async()=>{
+  const key="admin-secret-key-that-is-longer-than-32";
+  const DB={prepare(){throw new Error("database must not be queried without admin auth");}};
+  for (const [path,method,body] of [
+    ["/api/v1/admin/marketplace/summary","GET"],
+    ["/api/v1/admin/marketplace/entities?type=STORE","GET"],
+    ["/api/v1/admin/marketplace/stores/123e4567-e89b-42d3-a456-426614174000/status","POST",{status:"SUSPENDED",reason:"سبب إداري"}]
+  ]) {
+    const response=await worker.fetch(new Request("https://worker.test"+path,{method,headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined}),{DB,ADMIN_API_KEY:key});
+    assert.equal(response.status,401);
+    assert.equal((await response.json()).error,"UNAUTHORIZED");
+  }
+});
+
+test("admin marketplace listing exposes owner verification separately from store publication status",async()=>{
+  let captured;
+  const DB={prepare(sql){return {sql,params:[],bind(...params){this.params=params;captured=this;return this;},first:async()=>({total:1}),all:async()=>({results:[{id:"store-1",name:"متجر إب",category:"بقالة",neighborhood:"الظهار",status:"SUSPENDED",owner_verified:0,created_at:"2026-11-15",updated_at:"2026-11-15"}]})};}};
+  const key="admin-secret-key-that-is-longer-than-32";
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/marketplace/entities?type=STORE&status=SUSPENDED&q=%D8%A5%D8%A8",{headers:{Authorization:"Bearer "+key}}),{DB,ADMIN_API_KEY:key});
+  assert.equal(response.status,200); const data=await response.json();
+  assert.equal(data.total,1); assert.equal(data.items[0].status,"SUSPENDED"); assert.equal(data.items[0].owner_verified,false);
+  assert.deepEqual(captured.params,["SUSPENDED","إب","إب","إب",50,0]);
+});
+
+test("admin store suspension writes an audit row atomically with the conditional status update",async()=>{
+  const id="123e4567-e89b-42d3-a456-426614174000",key="admin-secret-key-that-is-longer-than-32"; let batchStatements=[];
+  const DB={prepare(sql){return {sql,params:[],bind(...params){this.params=params;return this;},first:async()=>sql.includes("SELECT id,status FROM stores")?{id,status:"APPROVED"}:sql.includes("SELECT id FROM admin_audit_log")?{id:"audit"}:null,all:async()=>({results:[]})};},batch:async(statements)=>{batchStatements=statements;return [];}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/marketplace/stores/"+id+"/status",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({status:"SUSPENDED",reason:"مخالفة موثقة"})}),{DB,ADMIN_API_KEY:key});
+  assert.equal(response.status,200); const data=await response.json(); assert.equal(data.status,"SUSPENDED"); assert.equal(data.action,"SUSPEND");
+  assert.equal(batchStatements.length,2); assert.match(batchStatements[0].sql,/UPDATE stores SET status/); assert.match(batchStatements[0].sql,/AND status=\?/); assert.match(batchStatements[1].sql,/admin_audit_log/); assert.match(batchStatements[1].sql,/changes\(\)=1/);
+});
+
+test("a product cannot be reactivated while its parent store is suspended",async()=>{
+  const id="123e4567-e89b-42d3-a456-426614174000",key="admin-secret-key-that-is-longer-than-32"; let batches=0;
+  const DB={prepare(sql){return {sql,bind(){return this;},first:async()=>({id,status:"SUSPENDED",store_status:"SUSPENDED"})};},batch:async()=>{batches++;return [];}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/marketplace/products/"+id+"/status",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({status:"ACTIVE",reason:"تمت المراجعة"})}),{DB,ADMIN_API_KEY:key});
+  assert.equal(response.status,409); assert.equal((await response.json()).error,"STORE_NOT_APPROVED"); assert.equal(batches,0);
+});
+
+
+test("admin marketplace summary returns non-map commerce counts only",async()=>{
+  const key="admin-secret-key-that-is-longer-than-32";
+  const DB={prepare(sql){return {sql,first:async()=>({total:sql.includes("stores WHERE status='SUSPENDED'")?2:sql.includes("products WHERE status='ACTIVE'")?7:sql.includes("submissions WHERE status='PENDING'")?3:0})};}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/marketplace/summary",{headers:{Authorization:"Bearer "+key}}),{DB,ADMIN_API_KEY:key});
+  assert.equal(response.status,200); const summary=(await response.json()).summary;
+  assert.equal(summary.stores_suspended,2); assert.equal(summary.products_active,7); assert.equal(summary.submissions_pending,3);
+  assert.equal(Object.hasOwn(summary,"directory_places"),false);
+});
+
+test("admin marketplace audit endpoint returns only operational audit fields",async()=>{
+  const key="admin-secret-key-that-is-longer-than-32"; let countParams,rowsParams;
+  const DB={prepare(sql){return {sql,bind(...params){if(sql.includes("COUNT(*)"))countParams=params;else rowsParams=params;return this;},first:async()=>({total:1}),all:async()=>({results:[{id:"audit-1",entity_type:"STORE",entity_id:"store-1",action:"SUSPEND",previous_status:"APPROVED",next_status:"SUSPENDED",reason:"سبب موثق",created_at:"2026-11-15T00:00:00Z"}]})};}};
+  const response=await worker.fetch(new Request("https://worker.test/api/v1/admin/marketplace/audit?type=STORE&limit=10",{headers:{Authorization:"Bearer "+key}}),{DB,ADMIN_API_KEY:key});
+  assert.equal(response.status,200); const data=await response.json();
+  assert.equal(data.total,1); assert.equal(data.items[0].action,"SUSPEND"); assert.equal(Object.hasOwn(data.items[0],"actor_fingerprint"),false);
+  assert.deepEqual(countParams,["STORE"]); assert.deepEqual(rowsParams,["STORE",10,0]);
 });

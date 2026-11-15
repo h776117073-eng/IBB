@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#102a43">
+  <title>عمليات السوق | إب ماركت</title>
+  <style>
+    :root{color-scheme:light;font-family:system-ui,Tahoma,Arial,sans-serif;background:#f3f6f8;color:#14283c}
+    *{box-sizing:border-box}body{margin:0}header{background:#102a43;color:#fff;padding:22px 16px}.wrap{max-width:1120px;margin:auto;padding:18px 15px}
+    h1{font-size:23px;margin:0 0 7px}h2{font-size:17px;margin:0 0 12px}p{line-height:1.65}.muted{color:#66788a;font-size:12px}
+    .panel,.stat,.entity,.audit{background:#fff;border:1px solid #dfe7ed;border-radius:14px}.panel{padding:16px;margin:14px 0}
+    input,select,button{font:inherit;border-radius:9px;padding:11px}input,select{border:1px solid #ccd7e0;background:#fff;color:#14283c;min-width:0}
+    button{border:0;background:#126e67;color:#fff;font-weight:700;cursor:pointer}button.secondary{background:#eaf1f4;color:#234257}button.danger{background:#fff0f0;color:#a33b3b}button:disabled{opacity:.5;cursor:not-allowed}
+    .keyrow,.toolbar,.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.keyrow input{flex:1}.toolbar input{flex:1;min-width:180px}.toolbar select{min-width:140px}
+    .status{min-height:24px;color:#126e67;font-size:13px;margin-top:8px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+    .stat{padding:12px}.stat strong{display:block;font-size:21px}.stat span{font-size:12px;color:#66788a}
+    .list{display:grid;gap:10px;margin-top:12px}.entity,.audit{padding:13px}.entity h3{margin:0 0 5px;font-size:16px}.meta{font-size:12px;color:#66788a;line-height:1.7}
+    .tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.tag{font-size:11px;background:#edf2f5;color:#345064;border-radius:20px;padding:4px 8px}.actions{margin-top:10px}
+    .empty{padding:20px;text-align:center;color:#66788a;background:#fff;border:1px dashed #cbd7df;border-radius:12px}.warning{background:#fff8e6;border:1px solid #f0dfb1;border-radius:12px;padding:12px;font-size:13px;line-height:1.7}
+    a{color:#126e67}@media(max-width:650px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar>*{width:100%}.wrap{padding:12px}.keyrow{align-items:stretch}.keyrow>*{width:100%}}
+  </style>
+</head>
+<body>
+<header><div class="wrap"><h1>عمليات إب ماركت</h1><div>إدارة حالة المتاجر والمنتجات وسجل قرارات المراجعة</div></div></header>
+<main class="wrap">
+  <section class="panel" id="loginPanel">
+    <label for="adminKey">مفتاح الإدارة</label>
+    <div class="keyrow"><input id="adminKey" type="password" autocomplete="off" placeholder="أدخل مفتاح الإدارة"><button id="connect">اتصال آمن</button></div>
+    <p class="muted">يظل المفتاح في ذاكرة الصفحة فقط؛ لا يُحفظ في التخزين المحلي أو عنوان الصفحة.</p>
+    <div id="status" class="status" role="status" aria-live="polite">أدخل مفتاح الإدارة للبدء.</div>
+  </section>
+  <section id="workspace" hidden>
+    <div class="warning"><strong>حدود الصلاحية:</strong> اعتماد بيانات المتجر لا يثبت ملكية صاحبه. حالة التحقق من الملكية منفصلة عن حالة النشر. إيقاف متجر يخفي منتجاته من الواجهة العامة، ولا ينفّذ هذا اللوح طلبات شراء أو مدفوعات.</div>
+    <section class="panel"><h2>ملخص التشغيل</h2><div id="summary" class="stats"></div></section>
+    <section class="panel">
+      <h2>إدارة المتاجر والمنتجات</h2>
+      <div class="toolbar">
+        <select id="entityType" aria-label="نوع السجل"><option value="STORE">المتاجر</option><option value="PRODUCT">المنتجات</option></select>
+        <select id="entityStatus" aria-label="حالة السجل"><option value="ALL">كل الحالات</option><option value="APPROVED">منشور</option><option value="SUSPENDED">موقوف</option></select>
+        <input id="entityQuery" type="search" placeholder="بحث بالاسم أو النشاط أو الحي" aria-label="بحث">
+        <button id="loadEntities">بحث وتحديث</button>
+      </div>
+      <div id="entities" class="list" aria-live="polite"></div>
+    </section>
+    <section class="panel"><h2>سجل قرارات الإدارة</h2><div id="audit" class="list" aria-live="polite"></div></section>
+    <section class="panel"><h2>جاهزية الدفع</h2><div id="paymentState" class="meta">جارٍ التحقق…</div></section>
+    <p><a href="./admin.html">العودة إلى مراجعة المساهمات</a></p>
+  </section>
+</main>
+<script>
+(function(){
+  "use strict";
+  var API="https://ibb-market-api.aicreativestudio.workers.dev",key="",$=function(id){return document.getElementById(id);};
+  function say(value){$("status").textContent=value;}
+  function node(parent,tag,cls,value){var n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);parent.appendChild(n);return n;}
+  async function call(path,options){options=options||{};var headers=Object.assign({Accept:"application/json",Authorization:"Bearer "+key},options.headers||{});if(options.body)headers["Content-Type"]="application/json";var response=await fetch(API+path,Object.assign({},options,{headers:headers,cache:"no-store"}));var data={};try{data=await response.json();}catch(_){}if(!response.ok)throw new Error(data.message||data.error||("HTTP "+response.status));return data;}
+  function setStatusOptions(){var type=$("entityType").value,select=$("entityStatus"),value=select.value;select.replaceChildren();[["ALL","كل الحالات"],...(type==="STORE"?[["APPROVED","منشور"],["SUSPENDED","موقوف"]]:[["ACTIVE","نشط"],["SUSPENDED","موقوف"]])].forEach(function(x){var o=document.createElement("option");o.value=x[0];o.textContent=x[1];select.appendChild(o);});if(Array.from(select.options).some(function(x){return x.value===value;}))select.value=value;}
+  function renderSummary(summary){var root=$("summary");root.replaceChildren();[["stores_total","كل المتاجر"],["stores_approved","المتاجر المنشورة"],["stores_suspended","المتاجر الموقوفة"],["products_total","كل المنتجات"],["products_active","المنتجات النشطة"],["products_suspended","المنتجات الموقوفة"],["submissions_pending","مساهمات معلقة"],["submissions_rejected","مساهمات مرفوضة"]].forEach(function(x){var card=node(root,"div","stat","");node(card,"strong","",Number(summary[x[0]]||0).toLocaleString("ar-YE"));node(card,"span","",x[1]);});}
+  function renderEntities(items,type){var root=$("entities");root.replaceChildren();if(!items.length){node(root,"div","empty","لا توجد سجلات مطابقة.");return;}items.forEach(function(item){var card=node(root,"article","entity","");node(card,"h3","",item.name);var details=type==="STORE"?[item.category,item.neighborhood].filter(Boolean).join(" · "):(item.store_name||"")+" · "+(item.category||"");node(card,"div","meta","المعرّف: "+item.id);node(card,"div","meta",details||"لا توجد تفاصيل إضافية");var tags=node(card,"div","tags","");node(tags,"span","tag","الحالة: "+item.status);if(type==="STORE")node(tags,"span","tag",item.owner_verified?"ملكية المتجر متحققة":"ملكية المتجر غير متحققة");else node(tags,"span","tag",item.price==null?"السعر غير محدد":Number(item.price).toLocaleString("ar-YE")+" "+(item.currency||"YER"));var actions=node(card,"div","actions","");var suspended=item.status==="SUSPENDED",button=node(actions,"button",suspended?"":"danger",suspended?"إعادة التفعيل":"إيقاف");button.type="button";button.addEventListener("click",function(){changeStatus(item,type,suspended?(type==="STORE"?"APPROVED":"ACTIVE"):"SUSPENDED",button);});});}
+  async function loadEntities(){var type=$("entityType").value,params=new URLSearchParams({type:type,status:$("entityStatus").value,q:$("entityQuery").value.trim(),limit:"100"});var data=await call("/api/v1/admin/marketplace/entities?"+params.toString());renderEntities(data.items||[],type);}
+  async function changeStatus(item,type,status,button){var reason=prompt(status==="SUSPENDED"?"سبب الإيقاف (مطلوب):":"سبب إعادة التفعيل (مطلوب):","");if(reason===null)return;if(reason.trim().length<3){say("اكتب سببًا من ثلاثة أحرف على الأقل.");return;}button.disabled=true;try{await call("/api/v1/admin/marketplace/"+(type==="STORE"?"stores":"products")+"/"+encodeURIComponent(item.id)+"/status",{method:"POST",body:JSON.stringify({status:status,reason:reason.trim()})});say("تم حفظ التغيير وتسجيله في سجل التدقيق.");await refresh();}catch(error){say("تعذر حفظ التغيير: "+error.message);button.disabled=false;}}
+  async function loadAudit(){var data=await call("/api/v1/admin/marketplace/audit?limit=50"),root=$("audit");root.replaceChildren();if(!(data.items||[]).length){node(root,"div","empty","لا توجد تغييرات مسجلة بعد.");return;}data.items.forEach(function(item){var card=node(root,"article","audit","");node(card,"strong","",(item.entity_type==="STORE"?"متجر":"منتج")+" · "+(item.action==="SUSPEND"?"إيقاف":"إعادة تفعيل"));node(card,"div","meta",item.previous_status+" ← "+item.next_status+" · "+new Date(item.created_at).toLocaleString("ar-YE"));node(card,"div","meta","السبب: "+item.reason);});}
+  async function refresh(){say("جارٍ تحديث بيانات العمليات…");try{var results=await Promise.all([call("/api/v1/admin/marketplace/summary"),loadEntities(),loadAudit(),call("/api/v1/payments/readiness")]);renderSummary(results[0].summary||{});var payment=results[3].payment||{};$("paymentState").textContent="العملة: "+(payment.currency||"YER")+" · حالة المزود: "+(payment.status||"غير معروفة")+" · الدفع الإلكتروني: "+(payment.checkout_enabled?"مفعّل":"غير مفعّل")+" · الإعدادات الناقصة: "+((payment.missing_configuration||[]).join("، ")||"لا توجد");$("workspace").hidden=false;say("تم الاتصال. لم يتم تفعيل أي مسار دفع.");}catch(error){say("تعذر تحميل لوحة العمليات: "+error.message);}}
+  $("connect").addEventListener("click",function(){key=$("adminKey").value.trim();if(key.length<32){say("مفتاح الإدارة غير صالح.");return;}refresh();});
+  $("adminKey").addEventListener("keydown",function(event){if(event.key==="Enter")$("connect").click();});
+  $("entityType").addEventListener("change",function(){setStatusOptions();if(key)loadEntities().catch(function(e){say(e.message);});});
+  $("loadEntities").addEventListener("click",function(){loadEntities().then(function(){say("تم تحديث السجلات.");}).catch(function(e){say(e.message);});});
+  setStatusOptions();
+})();
+</script>
+</body>
+</html>

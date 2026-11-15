@@ -30,6 +30,96 @@ const q=norm(u.searchParams.get("q")||"").slice(0,80),sid=String(u.searchParams.
 const r=await e.DB.prepare("SELECT p.id,p.store_id,s.name AS store_name,s.neighborhood AS store_neighborhood,p.name,p.category,p.description,p.price,p.currency,p.image_url,p.created_at FROM products p JOIN stores s ON s.id=p.store_id WHERE p.status='ACTIVE' AND s.status='APPROVED' AND (?='' OR instr(p.name_norm,?)>0 OR instr(p.category_norm,?)>0 OR instr(s.name_norm,?)>0) AND (?='' OR p.store_id=?) AND (?='' OR instr(s.neighborhood_norm,?)>0) ORDER BY p.created_at DESC,p.name COLLATE NOCASE LIMIT ? OFFSET ?").bind(q,q,q,q,sid,sid,neighborhood,neighborhood,p.l,p.o).all();
 return {ok:true,api_version:V,items:(r.results||[]).map(productOut),limit:p.l,offset:p.o};
 }
+export function buildAdminMarketplaceFilter(url) {
+  const type = String(url.searchParams.get("type") || "STORE").toUpperCase();
+  if (!["STORE", "PRODUCT"].includes(type)) throw new InputError("نوع السجل غير صالح");
+  const status = String(url.searchParams.get("status") || "ALL").toUpperCase();
+  const allowed = type === "STORE" ? ["ALL", "APPROVED", "SUSPENDED"] : ["ALL", "ACTIVE", "SUSPENDED"];
+  if (!allowed.includes(status)) throw new InputError("حالة السجل غير صالحة");
+  const q = norm(url.searchParams.get("q") || "").slice(0, 80);
+  const pagination = page(url);
+  const where = [], values = [];
+  if (status !== "ALL") { where.push(type === "STORE" ? "status=?" : "p.status=?"); values.push(status); }
+  if (q) {
+    where.push(type === "STORE"
+      ? "(instr(name_norm,?)>0 OR instr(category_norm,?)>0 OR instr(neighborhood_norm,?)>0)"
+      : "(instr(p.name_norm,?)>0 OR instr(p.category_norm,?)>0 OR instr(s.name_norm,?)>0 OR instr(s.neighborhood_norm,?)>0)");
+    values.push(...(type === "STORE" ? [q, q, q] : [q, q, q, q]));
+  }
+  return { type, status, q, whereSql: where.length ? " WHERE " + where.join(" AND ") : "", values,
+    limit: Math.min(100, pagination.l), offset: Math.min(10000, pagination.o) };
+}
+
+export function adminMarketplaceStatusInput(type, body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new InputError("بيانات تغيير الحالة غير صالحة");
+  const status = String(body.status || "").toUpperCase();
+  const allowed = type === "STORE" ? ["APPROVED", "SUSPENDED"] : type === "PRODUCT" ? ["ACTIVE", "SUSPENDED"] : [];
+  if (!allowed.includes(status)) throw new InputError("الحالة المطلوبة غير مسموحة");
+  const reason = field(body.reason, "سبب التغيير", 300, true);
+  if (reason.length < 3) throw new InputError("سبب التغيير يجب ألا يقل عن ثلاثة أحرف");
+  return { status, reason };
+}
+
+async function adminMarketplaceSummary(env) {
+  const queries = [
+    ["stores_total", "SELECT COUNT(*) AS total FROM stores"], ["stores_approved", "SELECT COUNT(*) AS total FROM stores WHERE status='APPROVED'"],
+    ["stores_suspended", "SELECT COUNT(*) AS total FROM stores WHERE status='SUSPENDED'"], ["products_total", "SELECT COUNT(*) AS total FROM products"],
+    ["products_active", "SELECT COUNT(*) AS total FROM products WHERE status='ACTIVE'"], ["products_suspended", "SELECT COUNT(*) AS total FROM products WHERE status='SUSPENDED'"],
+    ["submissions_pending", "SELECT COUNT(*) AS total FROM submissions WHERE status='PENDING'"], ["submissions_rejected", "SELECT COUNT(*) AS total FROM submissions WHERE status='REJECTED'"]
+  ];
+  const rows = await Promise.all(queries.map(async ([key, sql]) => { const result = await env.DB.prepare(sql).first(); return [key, Number(result && result.total || 0)]; }));
+  return { ok: true, summary: Object.fromEntries(rows) };
+}
+
+async function listAdminMarketplaceEntities(url, env) {
+  const filter = buildAdminMarketplaceFilter(url);
+  const countSql = filter.type === "STORE" ? "SELECT COUNT(*) AS total FROM stores" + filter.whereSql : "SELECT COUNT(*) AS total FROM products p JOIN stores s ON s.id=p.store_id" + filter.whereSql;
+  const rowsSql = filter.type === "STORE"
+    ? "SELECT id,name,category,neighborhood,status,owner_verified,created_at,updated_at FROM stores" + filter.whereSql + " ORDER BY updated_at DESC,name COLLATE NOCASE LIMIT ? OFFSET ?"
+    : "SELECT p.id,p.store_id,p.name,p.category,p.price,p.currency,p.status,p.created_at,s.name AS store_name,s.neighborhood AS store_neighborhood FROM products p JOIN stores s ON s.id=p.store_id" + filter.whereSql + " ORDER BY p.created_at DESC,p.name COLLATE NOCASE LIMIT ? OFFSET ?";
+  const [count, rows] = await Promise.all([env.DB.prepare(countSql).bind(...filter.values).first(), env.DB.prepare(rowsSql).bind(...filter.values, filter.limit, filter.offset).all()]);
+  const items = (rows.results || []).map((row) => filter.type === "STORE"
+    ? { id: row.id, name: row.name, category: row.category, neighborhood: row.neighborhood, status: row.status, owner_verified: Number(row.owner_verified) === 1, created_at: row.created_at, updated_at: row.updated_at }
+    : { id: row.id, store_id: row.store_id, store_name: row.store_name, store_neighborhood: row.store_neighborhood || "", name: row.name, category: row.category, price: row.price === null ? null : Number(row.price), currency: row.currency, status: row.status, created_at: row.created_at });
+  const total = Number(count && count.total || 0);
+  return { ok: true, type: filter.type, status: filter.status, query: filter.q, items, total, limit: filter.limit, offset: filter.offset, has_more: filter.offset + items.length < total };
+}
+
+async function listAdminMarketplaceAudit(url, env) {
+  const type = String(url.searchParams.get("type") || "ALL").toUpperCase();
+  if (!["ALL", "STORE", "PRODUCT"].includes(type)) throw new InputError("نوع سجل التدقيق غير صالح");
+  const pagination = page(url), limit = Math.min(100, pagination.l), offset = Math.min(10000, pagination.o);
+  const where = type === "ALL" ? "" : " WHERE entity_type=?", values = type === "ALL" ? [] : [type];
+  const [count, rows] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS total FROM admin_audit_log" + where).bind(...values).first(),
+    env.DB.prepare("SELECT id,entity_type,entity_id,action,previous_status,next_status,reason,created_at FROM admin_audit_log" + where + " ORDER BY created_at DESC LIMIT ? OFFSET ?").bind(...values, limit, offset).all()
+  ]);
+  const total = Number(count && count.total || 0);
+  return { ok: true, items: rows.results || [], total, limit, offset, has_more: offset + (rows.results || []).length < total };
+}
+
+async function changeAdminMarketplaceStatus(req, env, type, id) {
+  if (!isAdmin(req, env)) return { status: 401, data: { ok: false, error: "UNAUTHORIZED" } };
+  if (!uuid(id)) return { status: 400, data: { ok: false, error: "INVALID_ID" } };
+  const change = adminMarketplaceStatusInput(type, await read(req));
+  const entity = type === "STORE"
+    ? await env.DB.prepare("SELECT id,status FROM stores WHERE id=?").bind(id).first()
+    : await env.DB.prepare("SELECT p.id,p.status,s.status AS store_status FROM products p JOIN stores s ON s.id=p.store_id WHERE p.id=?").bind(id).first();
+  if (!entity) return { status: 404, data: { ok: false, error: "NOT_FOUND" } };
+  if (type === "PRODUCT" && change.status === "ACTIVE" && entity.store_status !== "APPROVED") return { status: 409, data: { ok: false, error: "STORE_NOT_APPROVED", message: "لا يمكن تفعيل منتج لمتجر موقوف." } };
+  if (entity.status === change.status) return { status: 200, data: { ok: true, unchanged: true, id, status: entity.status } };
+  const now = new Date().toISOString(), auditId = crypto.randomUUID(), actorFingerprint = await sha(String(env.ADMIN_API_KEY || ""));
+  const action = change.status === "SUSPENDED" ? "SUSPEND" : "REACTIVATE";
+  const update = type === "STORE"
+    ? env.DB.prepare("UPDATE stores SET status=?,updated_at=? WHERE id=? AND status=?").bind(change.status, now, id, entity.status)
+    : env.DB.prepare("UPDATE products SET status=? WHERE id=? AND status=?").bind(change.status, id, entity.status);
+  const audit = env.DB.prepare("INSERT INTO admin_audit_log(id,entity_type,entity_id,action,previous_status,next_status,reason,actor_fingerprint,created_at) SELECT ?,?,?,?,?,?,?,?,? WHERE changes()=1").bind(auditId, type, id, action, entity.status, change.status, change.reason, actorFingerprint, now);
+  await env.DB.batch([update, audit]);
+  const saved = await env.DB.prepare("SELECT id FROM admin_audit_log WHERE id=?").bind(auditId).first();
+  if (!saved) return { status: 409, data: { ok: false, error: "STATUS_CHANGED_CONCURRENTLY" } };
+  return { status: 200, data: { ok: true, id, entity_type: type, previous_status: entity.status, status: change.status, action, audit_id: auditId, updated_at: now } };
+}
+
 async function doReview(req,e,id){if(!isAdmin(req,e))return {status:401,data:{ok:false,error:"UNAUTHORIZED"}};if(!/^[0-9a-f-]{36}$/i.test(id))return {status:400,data:{ok:false,error:"INVALID_ID"}};const b=await read(req),decision=String(b.decision||"").toUpperCase(),reason=field(b.reason,"سبب المراجعة",300,false);if(!["APPROVE","REJECT"].includes(decision))throw new InputError("قرار المراجعة غير صالح");const item=await e.DB.prepare("SELECT id,kind,payload_json,status FROM submissions WHERE id=?").bind(id).first();if(!item)return {status:404,data:{ok:false,error:"NOT_FOUND"}};if(item.status!=="PENDING")return {status:409,data:{ok:false,error:"ALREADY_REVIEWED"}};const p=JSON.parse(item.payload_json),now=new Date().toISOString(),audit=crypto.randomUUID();if(decision==="REJECT"){await e.DB.batch([e.DB.prepare("UPDATE submissions SET status='REJECTED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'REJECT',?,? FROM submissions WHERE id=? AND status='REJECTED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"REJECTED"}};}
 if(item.kind==="STORE"){const dup=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND neighborhood_norm=? LIMIT 1").bind(p.name_norm,p.neighborhood_norm).first();if(dup)return {status:409,data:{ok:false,error:"DUPLICATE_STORE"}};const sid=crypto.randomUUID();await e.DB.batch([e.DB.prepare("INSERT INTO stores(id,name,name_norm,category,category_norm,description,neighborhood,neighborhood_norm,latitude,longitude,status,owner_verified,source_submission_id,created_at,updated_at) SELECT ?,json_extract(payload_json,'$.name'),json_extract(payload_json,'$.name_norm'),json_extract(payload_json,'$.category'),json_extract(payload_json,'$.category_norm'),json_extract(payload_json,'$.description'),json_extract(payload_json,'$.neighborhood'),json_extract(payload_json,'$.neighborhood_norm'),json_extract(payload_json,'$.latitude'),json_extract(payload_json,'$.longitude'),'APPROVED',0,id,?,? FROM submissions WHERE id=? AND status='PENDING'").bind(sid,now,now,id),e.DB.prepare("UPDATE submissions SET status='APPROVED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'APPROVE',?,? FROM submissions WHERE id=? AND status='APPROVED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"APPROVED",store_id:sid}};}
 if(item.kind==="PRODUCT"){let s=null;if(p.store_neighborhood_norm)s=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND neighborhood_norm=? AND status='APPROVED' LIMIT 1").bind(p.store_name_norm,p.store_neighborhood_norm).first();else{const m=await e.DB.prepare("SELECT id FROM stores WHERE name_norm=? AND status='APPROVED' ORDER BY created_at LIMIT 2").bind(p.store_name_norm).all();if((m.results||[]).length>1)return {status:409,data:{ok:false,error:"AMBIGUOUS_STORE",message:"حدد الحي لتمييز فرع المتجر."}};s=(m.results||[])[0]||null;}if(!s)return {status:409,data:{ok:false,error:"STORE_NOT_APPROVED"}};const dup=await e.DB.prepare("SELECT id FROM products WHERE store_id=? AND name_norm=? LIMIT 1").bind(s.id,p.name_norm).first();if(dup)return {status:409,data:{ok:false,error:"DUPLICATE_PRODUCT"}};const pid=crypto.randomUUID();await e.DB.batch([e.DB.prepare("INSERT INTO products(id,store_id,name,name_norm,category,category_norm,description,price,currency,image_url,status,source_submission_id,created_at) SELECT ?,?,json_extract(payload_json,'$.name'),json_extract(payload_json,'$.name_norm'),json_extract(payload_json,'$.category'),json_extract(payload_json,'$.category_norm'),json_extract(payload_json,'$.description'),json_extract(payload_json,'$.price'),'YER',json_extract(payload_json,'$.image_url'),'ACTIVE',id,? FROM submissions WHERE id=? AND status='PENDING'").bind(pid,s.id,now,id),e.DB.prepare("UPDATE submissions SET status='APPROVED',reviewed_at=?,review_reason=? WHERE id=? AND status='PENDING'").bind(now,reason,id),e.DB.prepare("INSERT INTO moderation_audit(id,submission_id,decision,reason,created_at) SELECT ?,id,'APPROVE',?,? FROM submissions WHERE id=? AND status='APPROVED' AND reviewed_at=?").bind(audit,reason,now,id,now)]);return {status:200,data:{ok:true,id,status:"APPROVED",product_id:pid}};}return {status:400,data:{ok:false,error:"UNKNOWN_KIND"}};}
@@ -99,6 +189,10 @@ if(req.method==="POST"&&u.pathname==="/api/v1/submissions/products"){const r=awa
 if(req.method==="GET"&&u.pathname==="/api/v1/admin/directory/candidates"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);return out(await listAdminDirectoryCandidates(u,e),200,o,e);}
 if(req.method==="GET"&&u.pathname==="/api/v1/admin/submissions"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);const st=String(u.searchParams.get("status")||"PENDING").toUpperCase(),kind=String(u.searchParams.get("kind")||"").toUpperCase(),lim=Math.max(1,Math.min(100,Number(u.searchParams.get("limit")||50)||50));if(!["PENDING","APPROVED","REJECTED","ALL"].includes(st)||(kind&&!["STORE","PRODUCT"].includes(kind)))throw new InputError("عامل تصفية غير صالح");const w=[],p=[];if(st!=="ALL"){w.push("status=?");p.push(st);}if(kind){w.push("kind=?");p.push(kind);}p.push(lim);const r=await e.DB.prepare("SELECT id,kind,payload_json,status,created_at,reviewed_at,review_reason FROM submissions "+(w.length?"WHERE "+w.join(" AND ")+" ":"")+"ORDER BY created_at DESC LIMIT ?").bind(...p).all();return out({ok:true,items:(r.results||[]).map(x=>({id:x.id,kind:x.kind,payload:JSON.parse(x.payload_json),status:x.status,created_at:x.created_at,reviewed_at:x.reviewed_at,review_reason:x.review_reason}))},200,o,e);}
 m=u.pathname.match(/^\/api\/v1\/admin\/submissions\/([^/]+)\/review$/);if(req.method==="POST"&&m){const r=await doReview(req,e,decodeURIComponent(m[1]));return out(r.data,r.status,o,e);}
+if(req.method==="GET"&&u.pathname==="/api/v1/admin/marketplace/summary"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);return out(await adminMarketplaceSummary(e),200,o,e);}
+if(req.method==="GET"&&u.pathname==="/api/v1/admin/marketplace/entities"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);return out(await listAdminMarketplaceEntities(u,e),200,o,e);}
+if(req.method==="GET"&&u.pathname==="/api/v1/admin/marketplace/audit"){if(!isAdmin(req,e))return out({ok:false,error:"UNAUTHORIZED"},401,o,e);return out(await listAdminMarketplaceAudit(u,e),200,o,e);}
+let marketplaceMatch=u.pathname.match(/^\/api\/v1\/admin\/marketplace\/(stores|products)\/([^/]+)\/status$/);if(req.method==="POST"&&marketplaceMatch){const type=marketplaceMatch[1]==="stores"?"STORE":"PRODUCT";const result=await changeAdminMarketplaceStatus(req,e,type,decodeURIComponent(marketplaceMatch[2]));return out(result.data,result.status,o,e);}
 const extended=await handleDirectoryCatalog(req,e,u,o);if(extended)return extended;
 return out({ok:false,error:"NOT_FOUND"},404,o,e);
 }catch(x){if(x instanceof InputError)return out({ok:false,error:"VALIDATION_ERROR",message:x.message},400,o,e);return out({ok:false,error:"INTERNAL_ERROR",message:"تعذر إكمال الطلب."},500,o,e);}}
